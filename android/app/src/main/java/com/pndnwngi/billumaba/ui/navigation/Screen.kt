@@ -1,0 +1,13 @@
+package com.pndnwngi.billumaba.ui.navigation
+
+sealed class Screen(val route: String) {
+    data object Dashboard : Screen("dashboard")
+    data object AddEdit : Screen("add_edit?visitId={visitId}") {
+        fun createRoute(visitId: Long? = null): String {
+            return if (visitId != null) "add_edit?visitId=$visitId" else "add_edit"
+        }
+    }
+    data object Detail : Screen("detail/{visitId}") {
+        fun createRoute(visitId: Long): String = "detail/$visitId"
+    }
+}
