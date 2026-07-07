@@ -7,20 +7,20 @@ Berikut adalah daftar tugas (checklist) yang dibagi berdasarkan tahapan implemen
 ## 📅 Tahap 1: Setup Proyek & Konfigurasi Dependensi
 *Fokus: Mempersiapkan environment dan mendaftarkan pustaka yang dibutuhkan.*
 
-- [ ] **1.1. Konfigurasi `libs.versions.toml`**
-  - [ ] Tambahkan versi dan definisi pustaka untuk **Room Database** (v2.6.1).
-  - [ ] Tambahkan versi dan definisi pustaka untuk **Dagger Hilt** (v2.51.1) dan Hilt Navigation Compose (v1.2.0).
-  - [ ] Tambahkan versi dan definisi pustaka untuk **Compose Navigation** (v2.8.7).
-- [ ] **1.2. Konfigurasi Build Gradle**
-  - [ ] Daftarkan plugin Dagger Hilt di `build.gradle.kts` tingkat proyek dan modul `:app`.
-  - [ ] Daftarkan plugin Kotlin Kapt / KSP untuk kompilasi Room & Hilt.
-  - [ ] Tambahkan dependensi Room, Hilt, dan Navigation Compose ke dalam file `app/build.gradle.kts`.
-- [ ] **1.3. Setup Struktur Direktori (Packages)**
-  - [ ] Buat package `data/database/dao` dan `data/database/entities`.
-  - [ ] Buat package `data/repository`.
-  - [ ] Buat package `data/storage`.
-  - [ ] Buat package `di`.
-  - [ ] Buat package `ui/navigation`, `ui/components`, `ui/theme`, `ui/dashboard`, `ui/addedit`, dan `ui/detail`.
+- [x] **1.1. Konfigurasi `libs.versions.toml`**
+  - [x] Tambahkan versi dan definisi pustaka untuk **Room Database** (v2.6.1).
+  - [x] Tambahkan versi dan definisi pustaka untuk **Dagger Hilt** (v2.51.1) dan Hilt Navigation Compose (v1.2.0).
+  - [x] Tambahkan versi dan definisi pustaka untuk **Compose Navigation** (v2.8.7).
+- [x] **1.2. Konfigurasi Build Gradle**
+  - [x] Daftarkan plugin Dagger Hilt di `build.gradle.kts` tingkat proyek dan modul `:app`.
+  - [x] Daftarkan plugin Kotlin Kapt / KSP untuk kompilasi Room & Hilt.
+  - [x] Tambahkan dependensi Room, Hilt, dan Navigation Compose ke dalam file `app/build.gradle.kts`.
+- [x] **1.3. Setup Struktur Direktori (Packages)**
+  - [x] Buat package `data/database/dao` dan `data/database/entities`.
+  - [x] Buat package `data/repository`.
+  - [x] Buat package `data/storage`.
+  - [x] Buat package `di`.
+  - [x] Buat package `ui/navigation`, `ui/components`, `ui/theme`, `ui/dashboard`, `ui/addedit`, dan `ui/detail`.
 
 ---
 
