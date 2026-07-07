@@ -60,16 +60,16 @@ Berikut adalah daftar tugas (checklist) yang dibagi berdasarkan tahapan implemen
 ## 🎨 Tahap 4: Desain Sistem & Pondasi UI (Theme & Navigation)
 *Fokus: Menentukan palet warna, navigasi antar halaman, dan komponen global.*
 
-- [ ] **4.1. Setup Tema M3 (Material Design 3)**
-  - [ ] Update `ui/theme/Color.kt` untuk mendefinisikan warna fallback bertema kuliner hangat (amber/orange/terracotta).
-  - [ ] Update `ui/theme/Theme.kt` untuk mendukung **Dynamic Color** (Android 12+) dan fallback ke skema warna hangat.
-  - [ ] Update `ui/theme/Type.kt` untuk tipografi modern (opsional: Outfit/Inter).
-- [ ] **4.2. Setup Navigasi**
-  - [ ] Buat file `ui/navigation/Screen.kt` yang mendefinisikan rute halaman (`Dashboard`, `AddEdit`, `Detail`).
-  - [ ] Buat `ui/navigation/AppNavigation.kt` dengan `NavHost` untuk mengelola perpindahan layar dan passing argument ID kunjungan.
-- [ ] **4.3. Komponen UI Global**
-  - [ ] Buat `ui/components/StarRating.kt` untuk input dan tampilan rating bintang berbasis angka desimal (1.0 - 5.0).
-  - [ ] Buat `ui/components/PhotoPicker.kt` untuk memicu kamera/galeri bawaan sistem Android.
+- [x] **4.1. Setup Tema M3 (Material Design 3)**
+  - [x] Update `ui/theme/Color.kt` untuk mendefinisikan warna fallback bertema kuliner hangat (amber/orange/terracotta).
+  - [x] Update `ui/theme/Theme.kt` untuk mendukung **Dynamic Color** (Android 12+) dan fallback ke skema warna hangat.
+  - [x] Update `ui/theme/Type.kt` untuk tipografi modern (opsional: Outfit/Inter).
+- [x] **4.2. Setup Navigasi**
+  - [x] Buat file `ui/navigation/Screen.kt` yang mendefinisikan rute halaman (`Dashboard`, `AddEdit`, `Detail`).
+  - [x] Buat `ui/navigation/AppNavigation.kt` dengan `NavHost` untuk mengelola perpindahan layar dan passing argument ID kunjungan.
+- [x] **4.3. Komponen UI Global**
+  - [x] Buat `ui/components/StarRating.kt` untuk input dan tampilan rating bintang berbasis angka desimal (1.0 - 5.0).
+  - [x] Buat `ui/components/PhotoPicker.kt` untuk memicu kamera/galeri bawaan sistem Android.
 
 ---
 
