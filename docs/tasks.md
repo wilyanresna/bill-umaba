@@ -94,19 +94,19 @@ Berikut adalah daftar tugas (checklist) yang dibagi berdasarkan tahapan implemen
 ## 📝 Tahap 6: Fitur Tambah & Edit Catatan (Add/Edit Screen)
 *Fokus: Mengatur pengisian data kunjungan, menu yang dipesan, dan pengambilan foto struk.*
 
-- [ ] **6.1. Setup State & ViewModel**
-  - [ ] Buat `AddEditUiState.kt` untuk melacak input form (foto struk, nama tempat, alamat, rating, ulasan tempat, daftar menu hidangan, dan status validasi).
-  - [ ] Buat `AddEditViewModel.kt` yang menangani inisialisasi data (jika mode edit), validasi form, dan proses simpan.
-- [ ] **6.2. Formulir Dinamis Menu Hidangan**
-  - [ ] Implementasikan UI baris menu hidangan yang bisa ditambah dan dihapus secara dinamis.
-  - [ ] Implementasikan kalkulasi subtotal menu secara realtime (`Quantity * Price`).
-- [ ] **6.3. Override Grand Total**
-  - [ ] Hitung akumulasi subtotal menu secara otomatis sebagai default `Grand Total`.
-  - [ ] Berikan opsi input field untuk me-override Grand Total secara manual jika ada pajak, tips, atau diskon.
-- [ ] **6.4. Validasi Form & Proses Simpan**
-  - [ ] Terapkan validasi: Nama tempat wajib diisi dan minimal ada 1 menu yang dipesan.
-  - [ ] Jalankan kompresi foto struk (< 500 KB) secara asinkron di ViewModel menggunakan `Dispatchers.Default` sebelum disimpan.
-  - [ ] Panggil repository untuk menyimpan data kunjungan beserta relasi menunya ke database.
+- [x] **6.1. Setup State & ViewModel**
+  - [x] Buat `AddEditUiState.kt` untuk melacak input form (foto struk, nama tempat, alamat, rating, ulasan tempat, daftar menu hidangan, dan status validasi).
+  - [x] Buat `AddEditViewModel.kt` yang menangani inisialisasi data (jika mode edit), validasi form, dan proses simpan.
+- [x] **6.2. Formulir Dinamis Menu Hidangan**
+  - [x] Implementasikan UI baris menu hidangan yang bisa ditambah dan dihapus secara dinamis.
+  - [x] Implementasikan kalkulasi subtotal menu secara realtime (`Quantity * Price`).
+- [x] **6.3. Override Grand Total**
+  - [x] Hitung akumulasi subtotal menu secara otomatis sebagai default `Grand Total`.
+  - [x] Berikan opsi input field untuk me-override Grand Total secara manual jika ada pajak, tips, atau diskon.
+- [x] **6.4. Validasi Form & Proses Simpan**
+  - [x] Terapkan validasi: Nama tempat wajib diisi dan minimal ada 1 menu yang dipesan.
+  - [x] Jalankan kompresi foto struk (< 500 KB) secara asinkron di ViewModel menggunakan `Dispatchers.Default` sebelum disimpan.
+  - [x] Panggil repository untuk menyimpan data kunjungan beserta relasi menunya ke database.
 
 ---
 
