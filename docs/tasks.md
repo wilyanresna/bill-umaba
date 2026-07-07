@@ -27,21 +27,21 @@ Berikut adalah daftar tugas (checklist) yang dibagi berdasarkan tahapan implemen
 ## 🗄️ Tahap 2: Lapisan Data (Data Layer) & Room Database
 *Fokus: Mengimplementasikan persistensi data lokal, kompresi gambar, dan manajemen penyimpanan berkas.*
 
-- [ ] **2.1. Definisikan Entitas Database**
-  - [ ] Buat `VisitEntity.kt` untuk menyimpan info kunjungan restoran (nama, alamat, rating desimal, tanggal epoch, path foto struk, grand total).
-  - [ ] Buat `MenuItemEntity.kt` untuk menyimpan rincian item hidangan (nama, kuantitas, harga, rating desimal, catatan).
-- [ ] **2.2. Definisikan Interface DAO**
-  - [ ] Buat `VisitDao.kt` untuk operasi CRUD data kunjungan (mendukung query sorting & filter pencarian).
-  - [ ] Buat `MenuDao.kt` untuk operasi CRUD item menu hidangan.
-- [ ] **2.3. Implementasi AppDatabase**
-  - [ ] Buat class `AppDatabase.kt` yang menginisialisasi Room DB dengan tabel `visits` dan `menu_items`.
-  - [ ] Hubungkan kedua entitas dengan foreign key dan cascade delete.
-- [ ] **2.4. Implementasi Manajemen File & Kompresi Gambar**
-  - [ ] Buat class `ImageCompressor.kt` untuk meresize gambar ke max width/height 1920px dan mengompresinya ke format JPEG secara iteratif hingga ukurannya **< 500 KB**.
-  - [ ] Buat class `StorageManager.kt` untuk menangani penyimpanan foto struk ke direktori internal aplikasi (`Context.filesDir`).
-- [ ] **2.5. Implementasi Repository Pattern**
-  - [ ] Buat interface `CulinaryRepository.kt` sebagai abstraksi data.
-  - [ ] Buat implementasi `CulinaryRepositoryImpl.kt` yang mengintegrasikan Room DB, `StorageManager`, dan `ImageCompressor` dalam satu transaksi (`withTransaction`).
+- [x] **2.1. Definisikan Entitas Database**
+  - [x] Buat `VisitEntity.kt` untuk menyimpan info kunjungan restoran (nama, alamat, rating desimal, tanggal epoch, path foto struk, grand total).
+  - [x] Buat `MenuItemEntity.kt` untuk menyimpan rincian item hidangan (nama, kuantitas, harga, rating desimal, catatan).
+- [x] **2.2. Definisikan Interface DAO**
+  - [x] Buat `VisitDao.kt` untuk operasi CRUD data kunjungan (mendukung query sorting & filter pencarian).
+  - [x] Buat `MenuDao.kt` untuk operasi CRUD item menu hidangan.
+- [x] **2.3. Implementasi AppDatabase**
+  - [x] Buat class `AppDatabase.kt` yang menginisialisasi Room DB dengan tabel `visits` dan `menu_items`.
+  - [x] Hubungkan kedua entitas dengan foreign key dan cascade delete.
+- [x] **2.4. Implementasi Manajemen File & Kompresi Gambar**
+  - [x] Buat class `ImageCompressor.kt` untuk meresize gambar ke max width/height 1920px dan mengompresinya ke format JPEG secara iteratif hingga ukurannya **< 500 KB**.
+  - [x] Buat class `StorageManager.kt` untuk menangani penyimpanan foto struk ke direktori internal aplikasi (`Context.filesDir`).
+- [x] **2.5. Implementasi Repository Pattern**
+  - [x] Buat interface `CulinaryRepository.kt` sebagai abstraksi data.
+  - [x] Buat implementasi `CulinaryRepositoryImpl.kt` yang mengintegrasikan Room DB, `StorageManager`, dan `ImageCompressor` dalam satu transaksi (`withTransaction`).
 
 ---
 
