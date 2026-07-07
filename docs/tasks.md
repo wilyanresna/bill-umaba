@@ -130,11 +130,11 @@ Berikut adalah daftar tugas (checklist) yang dibagi berdasarkan tahapan implemen
 ## 🧪 Tahap 8: Pengujian & Refinement Akhir
 *Fokus: Memastikan keandalan aplikasi secara keseluruhan.*
 
-- [ ] **8.1. Pengujian Ketersediaan Offline (Offline-First)**
-  - [ ] Jalankan aplikasi dalam Mode Pesawat (Airplane Mode) dan pastikan semua data CRUD bekerja dengan lancar.
-- [ ] **8.2. Verifikasi Batas Ukuran Foto Struk**
-  - [ ] Ambil gambar struk berukuran besar menggunakan kamera, lalu verifikasi ukuran file output kompresi di penyimpanan internal emulator/device (harus berada di bawah 500 KB).
-- [ ] **8.3. Pengujian Light & Dark Theme**
-  - [ ] Ubah tema sistem perangkat Android Anda dan verifikasi transisi warna pada aplikasi tetap nyaman dibaca dan elegan.
-- [ ] **8.4. Validasi Relasi Database**
-  - [ ] Verifikasi bahwa menghapus kunjungan (visit) akan otomatis menghapus menu hidangan terkait (`ON DELETE CASCADE`) dan file gambar struk fisik dari penyimpanan internal.
+- [x] **8.1. Pengujian Ketersediaan Offline (Offline-First)**
+  - [x] Jalankan aplikasi dalam Mode Pesawat (Airplane Mode) dan pastikan semua data CRUD bekerja dengan lancar.
+- [x] **8.2. Verifikasi Batas Ukuran Foto Struk**
+  - [x] Ambil gambar struk berukuran besar menggunakan kamera, lalu verifikasi ukuran file output kompresi di penyimpanan internal emulator/device (harus berada di bawah 500 KB).
+- [x] **8.3. Pengujian Light & Dark Theme**
+  - [x] Ubah tema sistem perangkat Android Anda dan verifikasi transisi warna pada aplikasi tetap nyaman dibaca dan elegan.
+- [x] **8.4. Validasi Relasi Database**
+  - [x] Verifikasi bahwa menghapus kunjungan (visit) akan otomatis menghapus menu hidangan terkait (`ON DELETE CASCADE`) dan file gambar struk fisik dari penyimpanan internal.
