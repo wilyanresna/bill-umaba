@@ -48,12 +48,12 @@ Berikut adalah daftar tugas (checklist) yang dibagi berdasarkan tahapan implemen
 ## 💉 Tahap 3: Dependency Injection (DI) dengan Hilt
 *Fokus: Mengatur penyediaan instansi database, DAO, dan repository secara otomatis.*
 
-- [ ] **3.1. Buat Application Class**
-  - [ ] Buat `BillUmabaApplication.kt` yang mewarisi `Application` dan beranotasi `@HiltAndroidApp`.
-  - [ ] Daftarkan class ini di dalam `AndroidManifest.xml`.
-- [ ] **3.2. Setup DI Modules**
-  - [ ] Buat `DatabaseModule.kt` untuk menyediakan instansi `AppDatabase`, `VisitDao`, `MenuDao`, dan helper storage.
-  - [ ] Buat `RepositoryModule.kt` untuk melakukan binding interface `CulinaryRepository` ke `CulinaryRepositoryImpl`.
+- [x] **3.1. Buat Application Class**
+  - [x] Buat `BillUmabaApplication.kt` yang mewarisi `Application` dan beranotasi `@HiltAndroidApp`.
+  - [x] Daftarkan class ini di dalam `AndroidManifest.xml`.
+- [x] **3.2. Setup DI Modules**
+  - [x] Buat `DatabaseModule.kt` untuk menyediakan instansi `AppDatabase`, `VisitDao`, `MenuDao`, dan helper storage.
+  - [x] Buat `RepositoryModule.kt` untuk melakukan binding interface `CulinaryRepository` ke `CulinaryRepositoryImpl`.
 
 ---
 
