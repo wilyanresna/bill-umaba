@@ -113,17 +113,17 @@ Berikut adalah daftar tugas (checklist) yang dibagi berdasarkan tahapan implemen
 ## 🔍 Tahap 7: Fitur Tampilan Detail (Detail Screen)
 *Fokus: Menampilkan detail riwayat kuliner secara terperinci.*
 
-- [ ] **7.1. Setup State & ViewModel**
-  - [ ] Buat `DetailUiState.kt` untuk menyimpan data detail satu kunjungan berdasarkan ID.
-  - [ ] Buat `DetailViewModel.kt` untuk meload data kunjungan beserta relasi menu-menunya.
-- [ ] **7.2. Tampilan Detail & Zoom Struk**
-  - [ ] Buat layout detail yang menampilkan foto struk di bagian atas.
-  - [ ] Buat interaksi klik foto struk untuk membuka mode pembesaran (zoom/fullscreen).
-  - [ ] Tampilkan informasi tempat lengkap dengan alamat, ulasan, dan rating bintang desimal.
-- [ ] **7.3. Rincian Tabel Menu & Tombol Aksi**
-  - [ ] Tampilkan list menu yang dipesan dalam bentuk tabel terstruktur (kuantitas, harga, subtotal, rating menu, dan catatan menu).
-  - [ ] Tampilkan Grand Total akhir yang terformat ke mata uang Rupiah.
-  - [ ] Tambahkan tombol Edit (navigasi ke `AddEditScreen`) dan tombol Hapus (konfirmasi hapus permanen dari DB dan disk).
+- [x] **7.1. Setup State & ViewModel**
+  - [x] Buat `DetailUiState.kt` untuk menyimpan data detail satu kunjungan berdasarkan ID.
+  - [x] Buat `DetailViewModel.kt` untuk meload data kunjungan beserta relasi menu-menunya.
+- [x] **7.2. Tampilan Detail & Zoom Struk**
+  - [x] Buat layout detail yang menampilkan foto struk di bagian atas.
+  - [x] Buat interaksi klik foto struk untuk membuka mode pembesaran (zoom/fullscreen).
+  - [x] Tampilkan informasi tempat lengkap dengan alamat, ulasan, dan rating bintang desimal.
+- [x] **7.3. Rincian Tabel Menu & Tombol Aksi**
+  - [x] Tampilkan list menu yang dipesan dalam bentuk tabel terstruktur (kuantitas, harga, subtotal, rating menu, dan catatan menu).
+  - [x] Tampilkan Grand Total akhir yang terformat ke mata uang Rupiah.
+  - [x] Tambahkan tombol Edit (navigasi ke `AddEditScreen`) dan tombol Hapus (konfirmasi hapus permanen dari DB dan disk).
 
 ---
 
