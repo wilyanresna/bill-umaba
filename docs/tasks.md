@@ -76,17 +76,18 @@ Berikut adalah daftar tugas (checklist) yang dibagi berdasarkan tahapan implemen
 ## 📊 Tahap 5: Fitur Dashboard & Riwayat Kuliner (Dashboard Screen)
 *Fokus: Menampilkan metrik keuangan dan daftar histori kuliner.*
 
-- [ ] **5.1. Setup State & ViewModel**
-  - [ ] Buat `DashboardUiState.kt` untuk menampung data metrik pengeluaran bulanan, total kunjungan, query pencarian, jenis sorting, dan list kunjungan.
-  - [ ] Buat `DashboardViewModel.kt` untuk mengambil data secara reaktif (`Flow`) dari repository.
-- [ ] **5.2. Logika Perhitungan Metrik & Filter**
-  - [ ] Implementasikan kalkulasi total pengeluaran bulan berjalan dalam Rupiah (Rp).
-  - [ ] Implementasikan pencarian berdasarkan nama tempat, alamat, atau nama menu.
-  - [ ] Implementasikan logika pengurutan (Sorting) berdasarkan Tanggal (Terbaru/Terlama), Grand Total (Termahal/Termurah), dan Rating Tempat (Tertinggi/Terendah).
-- [ ] **5.3. Pembuatan UI Dashboard**
-  - [ ] Buat layout `DashboardScreen.kt` dengan header ringkasan metrik (Total Pengeluaran & Kunjungan).
-  - [ ] Buat list kunjungan menggunakan kartu informasi (termasuk thumbnail struk terkompresi, rating desimal, grand total, dan tombol hapus cepat).
-  - [ ] Tambahkan Floating Action Button (FAB) untuk navigasi ke form tambah catatan.
+- [x] **5.1. Setup State & ViewModel**
+  - [x] Buat `DashboardUiState.kt` untuk menampung data metrik pengeluaran bulanan, total kunjungan, query pencarian, jenis sorting, dan list kunjungan.
+  - [x] Buat `DashboardViewModel.kt` untuk mengambil data secara reaktif (`Flow`) dari repository.
+- [x] **5.2. Logika Perhitungan Metrik & Filter**
+  - [x] Implementasikan kalkulasi total pengeluaran bulan berjalan dalam Rupiah (Rp).
+  - [x] Implementasikan pencarian berdasarkan nama tempat, alamat, atau nama menu.
+  - [x] Implementasikan logika pengurutan (Sorting) berdasarkan Tanggal (Terbaru/Terlama), Grand Total (Termahal/Termurah), dan Rating Tempat (Tertinggi/Terendah).
+- [x] **5.3. Pembuatan UI Dashboard**
+  - [x] Buat layout `DashboardScreen.kt` dengan header ringkasan metrik (Total Pengeluaran & Kunjungan).
+  - [x] Buat list kunjungan menggunakan kartu informasi (termasuk thumbnail struk terkompresi, rating desimal, grand total, dan tombol hapus cepat).
+  - [x] Tambahkan Floating Action Button (FAB) untuk navigasi ke form tambah catatan.
+
 
 ---
 
