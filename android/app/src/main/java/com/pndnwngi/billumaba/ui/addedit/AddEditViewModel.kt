@@ -5,7 +5,9 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.pndnwngi.billumaba.data.database.dao.ReceiptPatternDao
 import com.pndnwngi.billumaba.data.database.entities.MenuItemEntity
+import com.pndnwngi.billumaba.data.database.entities.ReceiptPatternEntity
 import com.pndnwngi.billumaba.data.database.entities.VisitEntity
 import com.pndnwngi.billumaba.data.ocr.ReceiptOcrEngine
 import com.pndnwngi.billumaba.data.parser.ParsedReceipt
@@ -31,6 +33,7 @@ class AddEditViewModel @Inject constructor(
     private val imageCompressor: ImageCompressor,
     private val storageManager: StorageManager,
     private val ocrEngine: ReceiptOcrEngine,
+    private val patternDao: ReceiptPatternDao,
     @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -234,6 +237,16 @@ class AddEditViewModel @Inject constructor(
 
     fun onResetGrandTotalOverride() {
         _uiState.update { it.copy(grandTotalOverride = "", isGrandTotalOverridden = false) }
+    }
+
+    fun saveCurrentOcrAsPattern(pattern: ReceiptPatternEntity) {
+        viewModelScope.launch {
+            patternDao.upsert(pattern)
+        }
+    }
+
+    fun onNavigateToPatternEdit(onNavigate: () -> Unit) {
+        onNavigate()
     }
 
     private fun updateMenuItem(index: Int, transform: (MenuItemInput) -> MenuItemInput) {

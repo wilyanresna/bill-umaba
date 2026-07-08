@@ -17,3 +17,12 @@ Yang dicatat adalah:
 7. catatan untuk tempat
 
 Gw mau aplikasi ini memiliki tampilan Material Design 3.
+
+## Fitur Scan Struk
+
+Aplikasi memiliki fitur **Scan Struk** yang terdiri dari 4 tahap:
+
+1. **Auto-Frame** — Foto struk otomatis diluruskan & di-crop via ML Kit Document Scanner. Graceful fallback ke kamera biasa jika GMS tidak tersedia.
+2. **OCR** — Teks struk diekstrak via ML Kit Text Recognition Latin (on-device). Hasil ditampilkan di OcrReviewScreen yang editable.
+3. **Text Mapping** — OCR result diparsing otomatis ke data terstruktur (nama tempat, menu, total, pajak). 3 parser preset: Umum, Resto, Retail. Auto-detect dari keyword, user bisa override.
+4. **Dynamic Pattern** — User bisa simpan pattern parsing per restoran via visual builder (tanpa regex). Pattern dipakai otomatis saat scan dari tempat yang sama.

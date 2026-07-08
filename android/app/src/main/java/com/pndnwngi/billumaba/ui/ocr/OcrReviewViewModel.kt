@@ -69,7 +69,7 @@ class OcrReviewViewModel @Inject constructor(
                         OcrLine(text = text, boundingBox = null, confidence = null)
                     }
                 )
-                val result = parserFactory.parse(editedOcr, state.parserTypeOverride)
+                val result = parserFactory.parse(editedOcr, overrideType = state.parserTypeOverride)
                 _uiState.update {
                     it.copy(
                         parsedReceipt = result,

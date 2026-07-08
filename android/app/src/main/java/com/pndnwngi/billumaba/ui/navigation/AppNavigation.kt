@@ -18,6 +18,8 @@ import com.pndnwngi.billumaba.ui.addedit.AddEditViewModel
 import com.pndnwngi.billumaba.ui.dashboard.DashboardScreen
 import com.pndnwngi.billumaba.ui.detail.DetailScreen
 import com.pndnwngi.billumaba.ui.ocr.OcrReviewScreen
+import com.pndnwngi.billumaba.ui.patterns.PatternEditScreen
+import com.pndnwngi.billumaba.ui.patterns.PatternListScreen
 
 @Composable
 fun AppNavigation(
@@ -41,6 +43,9 @@ fun AppNavigation(
                 },
                 onNavigateToDetail = { visitId ->
                     navController.navigate(Screen.Detail.createRoute(visitId))
+                },
+                onNavigateToPatterns = {
+                    navController.navigate(Screen.PatternList.route)
                 }
             )
         }
@@ -102,6 +107,29 @@ fun AppNavigation(
                 onNavigateToEdit = { visitId ->
                     navController.navigate(Screen.AddEdit.createRoute(visitId))
                 }
+            )
+        }
+
+        composable(route = Screen.PatternList.route) {
+            PatternListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = { id ->
+                    navController.navigate(Screen.PatternEdit.createRoute(id))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.PatternEdit.route,
+            arguments = listOf(
+                navArgument("id") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                }
+            )
+        ) {
+            PatternEditScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

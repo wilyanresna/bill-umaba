@@ -11,4 +11,9 @@ sealed class Screen(val route: String) {
         fun createRoute(visitId: Long): String = "detail/$visitId"
     }
     data object OcrReview : Screen("ocr_review")
+    data object PatternList : Screen("patterns")
+    data object PatternEdit : Screen("patterns/edit?id={id}") {
+        fun createRoute(id: Long? = null): String =
+            if (id != null) "patterns/edit?id=$id" else "patterns/edit"
+    }
 }

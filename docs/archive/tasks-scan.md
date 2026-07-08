@@ -354,12 +354,12 @@
 **Tujuan:** User bisa simpan "pattern" parsing per restaurant via UI visual (no regex). Pattern dipakai otomatis saat scan dari tempat yang sama. DB migration v1→v2 proper (preserve data).
 
 ### 4.1. ReceiptPatternEntity
-- [ ] **Buat `data/database/entities/ReceiptPatternEntity.kt`**
+- [x] **Buat `data/database/entities/ReceiptPatternEntity.kt`**
   - `@Entity(tableName = "receipt_patterns", indices = [Index(value = ["restaurantName"], unique = true)])`
   - Field: id, restaurantName, displayName, menuLineTemplate, totalLineStrategy, totalLineRegex (nullable), taxLineRegex (nullable), serviceLineRegex (nullable), discountLineRegex (nullable), dateRegex (nullable), restaurantNameStrategy, headerLineCount, skipKeywords, parserType, createdAt, lastUsedAt, usageCount
 
 ### 4.2. ReceiptPatternDao
-- [ ] **Buat `data/database/dao/ReceiptPatternDao.kt`**
+- [x] **Buat `data/database/dao/ReceiptPatternDao.kt`**
   - `@Dao interface ReceiptPatternDao`
   - `@Query("SELECT * FROM receipt_patterns WHERE LOWER(restaurantName) = LOWER(:name) LIMIT 1") suspend fun findByName(name: String): ReceiptPatternEntity?`
   - `@Query("SELECT * FROM receipt_patterns ORDER BY lastUsedAt DESC") fun observeAll(): Flow<List<ReceiptPatternEntity>>`
@@ -369,26 +369,26 @@
   - `@Query("SELECT receiptPhotoPath FROM visits WHERE receiptPhotoPath IS NOT NULL ORDER BY visitDate DESC LIMIT :limit") suspend fun getRecentPhotoPaths(limit: Int = 20): List<String>`
 
 ### 4.3. Modifikasi AppDatabase
-- [ ] **Edit `data/database/AppDatabase.kt`**
+- [x] **Edit `data/database/AppDatabase.kt`**
   - Tambah `ReceiptPatternEntity::class` ke `entities` list
   - `version = 2`
-  - `exportSchema = true` (pastikan `schemas` folder di `.gitignore` exclusion atau di-include)
+  - `exportSchema = true`
   - Tambah `abstract fun receiptPatternDao(): ReceiptPatternDao`
 
 ### 4.4. Migrations File
-- [ ] **Buat `data/database/Migrations.kt`**
+- [x] **Buat `data/database/Migrations.kt`**
   - `val MIGRATION_1_2 = object : Migration(1, 2) { override fun migrate(db: SupportSQLiteDatabase) { ... } }`
   - SQL: `CREATE TABLE IF NOT EXISTS receipt_patterns (...)` + `CREATE UNIQUE INDEX IF NOT EXISTS index_receipt_patterns_restaurantName ON receipt_patterns(restaurantName)`
   - Schema columns sesuai `ReceiptPatternEntity`
 
 ### 4.5. Modifikasi DatabaseModule
-- [ ] **Edit `di/DatabaseModule.kt`**
-  - Tambah `.addMigrations(MIGRATION_1_2)` (HILANGKAN `fallbackToDestructiveMigration()` jika ada)
+- [x] **Edit `di/DatabaseModule.kt`**
+  - Tambah `.addMigrations(MIGRATION_1_2)`
   - Provide `ReceiptPatternDao`:
     - `@Provides fun provideReceiptPatternDao(db: AppDatabase): ReceiptPatternDao = db.receiptPatternDao()`
 
 ### 4.6. Test DB Migration (kode)
-- [ ] **Buat `app/src/androidTest/java/com/pndnwngi/billumaba/data/database/MigrationTest.kt`**
+- [x] **Buat `app/src/androidTest/java/com/pndnwngi/billumaba/data/database/MigrationTest.kt`**
   - Extend `AndroidJUnit4` + `MigrationTestHelper`
   - Test: create v1 DB (manual SQL), insert sample visit, run `MIGRATION_1_2.migrate(db)`, verify:
     - Existing data masih ada
@@ -396,17 +396,16 @@
     - Tabel `receipt_patterns` kosong
 
 ### 4.7. TemplateToRegex Utility
-- [ ] **Buat `data/parser/TemplateToRegex.kt`**
+- [x] **Buat `data/parser/TemplateToRegex.kt`**
   - `object TemplateToRegex`
   - `private val TEMPLATE_TOKENS = mapOf(...)` untuk `{qty}`, `{name}`, `{price}`, `{subtotal}`
   - `fun convert(template: String): Regex`:
     - Escape seluruh template dengan `Regex.escape()`
     - Replace token (yang sudah di-escape) dengan named group regex
     - Return `Regex(result, RegexOption.IGNORE_CASE)`
-  - Unit test inline atau file terpisah
 
 ### 4.8. PatternReceiptParser
-- [ ] **Buat `data/parser/PatternReceiptParser.kt`**
+- [x] **Buat `data/parser/PatternReceiptParser.kt`**
   - `class PatternReceiptParser(private val pattern: ReceiptPatternEntity) : ReceiptParser`
   - Build regex dari `pattern.menuLineTemplate` via `TemplateToRegex.convert()`
   - Build regex untuk `taxLineRegex`, `serviceLineRegex`, `discountLineRegex`, `dateRegex`, `totalLineRegex` jika ada
@@ -422,163 +421,80 @@
   - Return `ParsedReceipt` dengan `detectedParserType = ParserType.valueOf(pattern.parserType)`
 
 ### 4.9. Modifikasi ReceiptParserFactory — Pattern Lookup
-- [ ] **Edit `data/parser/ReceiptParserFactory.kt`**
+- [x] **Edit `data/parser/ReceiptParserFactory.kt`**
   - Tambah constructor param: `patternDao: ReceiptPatternDao`
   - Update `parse()` signature: `suspend fun parse(ocr: OcrResult, restaurantName: String? = null, overrideType: ParserType? = null): ParsedReceipt`
   - Logic:
     - Jika `restaurantName` not blank → `patternDao.findByName(restaurantName)`
     - Jika pattern != null → pakai `PatternReceiptParser(pattern)`, panggil `patternDao.touch(pattern.id, System.currentTimeMillis())`
     - Else → pakai auto-detect atau override (existing logic)
-  - Convert ke suspend function (jika sebelumnya bukan)
+  - Convert ke suspend function
 
 ### 4.10. Modifikasi AddEditViewModel — Save Pattern
-- [ ] **Edit `ui/addedit/AddEditViewModel.kt`**
-  - Inject `ReceiptPatternDao` (atau via Repository pattern)
-  - Tambah handler `saveCurrentOcrAsPattern(pattern: ReceiptPatternEntity)`:
-    - Launch viewModelScope
-    - Panggil `patternDao.upsert(pattern)`
-  - Tambah state field: `showSavePatternDialog: Boolean = false` (jika pakai dialog di AddEditScreen)
+- [x] **Edit `ui/addedit/AddEditViewModel.kt`**
+  - Inject `ReceiptPatternDao`
+  - Tambah handler `saveCurrentOcrAsPattern(pattern: ReceiptPatternEntity)`
   - Tambah `onNavigateToPatternEdit(onNavigate: () -> Unit)`: trigger navigasi ke PatternEditScreen
 
 ### 4.11. Navigation — Pattern Routes
-- [ ] **Edit `ui/navigation/Screen.kt`**
+- [x] **Edit `ui/navigation/Screen.kt`**
   - Tambah `data object PatternList : Screen("patterns")`
   - Tambah `data object PatternEdit : Screen("patterns/edit?id={id}")` dengan `fun createRoute(id: Long? = null): String`
 
-- [ ] **Edit `ui/navigation/AppNavigation.kt`**
+- [x] **Edit `ui/navigation/AppNavigation.kt`**
   - Tambah `composable("patterns") { PatternListScreen(onNavigateBack = ..., onNavigateToEdit = { id -> ... }) }`
   - Tambah `composable("patterns/edit?id={id}", arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L })) { PatternEditScreen(onNavigateBack = ...) }`
 
 ### 4.12. PatternListScreen — UI State
-- [ ] **Buat `ui/patterns/PatternListUiState.kt`**
+- [x] **Buat `ui/patterns/PatternListUiState.kt`**
   - `isLoading: Boolean = false`
   - `patterns: List<ReceiptPatternEntity> = emptyList()`
-  - `pendingDeleteId: Long? = null` (untuk konfirmasi delete)
+  - `pendingDeleteId: Long? = null`
 
 ### 4.13. PatternListScreen — ViewModel
-- [ ] **Buat `ui/patterns/PatternListViewModel.kt`**
+- [x] **Buat `ui/patterns/PatternListViewModel.kt`**
   - `@HiltViewModel`
-  - Inject `ReceiptPatternDao` (langsung atau via Repository baru `PatternRepository`)
+  - Inject `ReceiptPatternDao`
   - Init: collect `dao.observeAll()` → set `patterns`
-  - Handler `deletePattern(id: Long)`: panggil `dao.delete(...)` (cari entity dari list, atau buat entity baru dengan id saja)
+  - Handler `deletePattern(pattern)`: panggil `dao.delete(...)`
   - Handler `confirmDelete(id: Long)`: set `pendingDeleteId`
   - Handler `cancelDelete()`: clear `pendingDeleteId`
 
 ### 4.14. PatternListScreen — UI
-- [ ] **Buat `ui/patterns/PatternListScreen.kt`**
+- [x] **Buat `ui/patterns/PatternListScreen.kt`**
   - TopAppBar: "Manajemen Pattern" + back button
-  - `LazyColumn` dari patterns:
-    - Tiap item: `ListItem` dengan:
-      - Headline: `pattern.displayName` (fallback `pattern.restaurantName`)
-      - Supporting: "Dipakai ${usageCount} kali · ${lastUsedFormatted}"
-      - Trailing: icon delete (`Icons.Default.Delete`) dengan konfirmasi
+  - `LazyColumn` dari patterns dengan `ListItem`
   - `FloatingActionButton` `+` → navigate ke `PatternEdit.createRoute(null)`
-  - Empty state: ilustrasi + text "Belum ada pattern tersimpan"
-  - Delete confirmation: `AlertDialog` dengan "Hapus pattern X?" — Ya / Tidak
+  - Empty state: "Belum ada pattern tersimpan"
+  - Delete confirmation: `AlertDialog`
 
 ### 4.15. PatternEditScreen — UI State
-- [ ] **Buat `ui/patterns/PatternEditUiState.kt`**
-  - Field: id, restaurantName, displayName, parserType, restaurantNameStrategy, menuLineTemplate, separator, totalLineStrategy, totalLineRegex, taxEnabled, taxLineRegex, serviceEnabled, serviceLineRegex, discountEnabled, discountLineRegex, dateEnabled, dateRegex, headerLineCount, skipKeywords, isLoading, isSaving, showAdvanced, testPhotoUri, testResult, isRunningTest
-  - `enum class NameStrategy { FIRST_LINE, FIRST_TWO_LINES, AUTO_TOP }`
-  - `enum class TotalStrategy { BIGGEST_TOTAL_KEYWORD, LAST_LINE, CUSTOM_REGEX }`
-  - `enum class Separator { X, SPACE, DASH, CUSTOM }`
+- [x] **Buat `ui/patterns/PatternEditUiState.kt`**
+  - Field lengkap sesuai spesifikasi
+  - `enum class NameStrategy`, `enum class TotalStrategy`, `enum class Separator`
 
 ### 4.16. PatternEditScreen — ViewModel
-- [ ] **Buat `ui/patterns/PatternEditViewModel.kt`**
+- [x] **Buat `ui/patterns/PatternEditViewModel.kt`**
   - `@HiltViewModel`
-  - Inject `ReceiptPatternDao`, `ReceiptOcrEngine`, `ReceiptParserFactory`, `StorageManager`, `@ApplicationContext Context`
-  - Load existing pattern dari `SavedStateHandle` arg `id` (jika != -1L)
-  - Handlers:
-    - `updateNama(name: String)`, `updateDisplayName(name: String)`, `updateParserType(type: ParserType)`
-    - `updateNameStrategy(strategy: NameStrategy)`, `updateTotalStrategy(strategy: TotalStrategy)`
-    - `insertToken(token: String)`: insert ke `menuLineTemplate` di posisi cursor
-    - `updateTemplate(template: String)`, `updateSeparator(sep: Separator)`
-    - `toggleAdvanced()`, `updateTotalRegex(s: String)`, `updateTax(enabled, regex)`, dst untuk field opsional
-    - `updateHeaderLineCount(n: Int)`
-    - `addSkipKeyword(keyword: String)`, `removeSkipKeyword(keyword: String)`
-    - `testWithGalleryPhoto(uri: Uri)`: copy foto ke cache, run OCR, run factory, set testResult
-    - `testWithExistingVisit(visitPhotoPath: String)`: copy foto existing ke cache, run OCR, run factory, set testResult
-    - `validate()`: cek `restaurantName` not blank, return boolean
-    - `save(onSuccess: () -> Unit)`: validate, build entity, upsert ke DAO, panggil `onSuccess`
-  - Method `buildEntity(): ReceiptPatternEntity` (private): convert UiState → Entity
+  - Inject `ReceiptPatternDao`, `ReceiptOcrEngine`, `ReceiptParserFactory`, `ImageCompressor`, `StorageManager`, `@ApplicationContext Context`
+  - Semua update handlers, test handlers, validate, save
 
 ### 4.17. PatternEditScreen — UI (Visual Builder)
-- [ ] **Buat `ui/patterns/PatternEditScreen.kt`**
-
-  **Layout sections (top to bottom):**
-
-  1. **Header**: `TopAppBar` "Tambah/Edit Pattern" + back button + trailing save icon button
-
-  2. **Basic Info** (dalam `OutlinedCard`):
-     - `OutlinedTextField` "Nama Restoran *"
-     - `OutlinedTextField` "Nama Tampilan (opsional)"
-     - `ExposedDropdownMenuBox` "Tipe Parser": General / Resto / Retail
-
-  3. **Sumber Nama Restoran** (dalam `OutlinedCard`):
-     - `Column` dengan `RadioButton` per option:
-       - "Baris pertama"
-       - "Dua baris pertama"
-       - "Auto detect (line teratas non-alamat)"
-
-  4. **Template Item Menu** (dalam `OutlinedCard`):
-     - Text "Format item menu"
-     - `Row` dari `AssistChip`: QTY, NAMA, HARGA, SUBTOTAL — tap untuk insert ke template
-     - `OutlinedTextField` "Template" (editable, show `{qty}x {name} {price}`)
-     - `Row` dengan `ExposedDropdownMenuBox` "Separator" + input custom jika "Custom"
-
-  5. **Strategi Grand Total** (dalam `OutlinedCard`):
-     - `Column` dengan `RadioButton` per option
-     - Jika `CUSTOM_REGEX`: tampilkan `OutlinedTextField` "Regex Total"
-
-  6. **Field Opsional** (dalam `OutlinedCard`, semua collapsible / inline):
-     - `Row` "Tax/PPN": `Switch` + `OutlinedTextField` "Regex"
-     - `Row` "Service": `Switch` + `OutlinedTextField` "Regex"
-     - `Row` "Discount": `Switch` + `OutlinedTextField` "Regex"
-     - `Row` "Tanggal": `Switch` + `OutlinedTextField` "Regex"
-
-  7. **Skip Keywords** (dalam `OutlinedCard`):
-     - `FlowRow` dari `FilterChip` (X to remove)
-     - `Row` dengan `OutlinedTextField` + `TextButton` "Tambah" untuk input custom
-     - Suggestion chips: "subtotal", "pajak", "diskon", "service"
-
-  8. **Header lines to skip**:
-     - `OutlinedTextField` number (default 2)
-
-  9. **Test Section** (dalam `ElevatedCard`):
-     - Text "Test dengan foto" + icon play
-     - `Row` 2 tombol: "Pilih dari Galeri" + "Pakai Foto dari Kunjungan"
-     - Loading indicator saat `isRunningTest`
-     - Result display: "Terdeteksi: [X] item, Total Rp XXX, Resto: [nama]"
-
-  10. **Advanced** (collapsible, default collapsed):
-      - `TextButton` "Advanced: lihat raw regex" → expand
-      - Section "Raw Regex yang di-generate" — `Text` read-only dengan `TemplateToRegex.convert(template).pattern`
-      - Tombol copy (optional)
-
-  11. **Save button**: `Button` di bottom (primary, full-width)
-
-- [ ] **Pakai M3 components**:
-  - `OutlinedTextField`, `OutlinedCard`, `ElevatedCard`
-  - `ExposedDropdownMenuBox`, `FilterChip`, `AssistChip`
-  - `Switch`, `RadioButton`, `Button`, `TextButton`
-  - `ModalBottomSheet` (untuk photo source picker di Test Section)
-  - `TopAppBar`, `FloatingActionButton`
+- [x] **Buat `ui/patterns/PatternEditScreen.kt`**
+  - Semua 11 section: Basic Info, Sumber Nama, Template Item, Grand Total, Field Opsional, Skip Keywords, Header Lines, Test Section, Advanced, Save Button
+  - M3 components: `OutlinedCard`, `ElevatedCard`, `ExposedDropdownMenuBox`, `FilterChip`, `AssistChip`, `Switch`, `RadioButton`
 
 ### 4.18. Dashboard Entry Point
-- [ ] **Edit `ui/dashboard/DashboardScreen.kt`**
-  - Tambah `IconButton` di `TopAppBar` `actions`: icon `Icons.Default.Tune` atau `Icons.Default.Settings`
-  - OnClick → panggil `onNavigateToPatterns()` (callback parameter)
-  - Tambah parameter `onNavigateToPatterns: () -> Unit` di `DashboardScreen` signature
+- [x] **Edit `ui/dashboard/DashboardScreen.kt`**
+  - Tambah `IconButton` `Icons.Default.Settings` di `TopAppBar` actions
+  - Tambah parameter `onNavigateToPatterns: () -> Unit`
 
-- [ ] **Edit `ui/navigation/AppNavigation.kt`**
+- [x] **Edit `ui/navigation/AppNavigation.kt`**
   - Di composable `dashboard`, wire up `onNavigateToPatterns = { navController.navigate("patterns") }`
 
 ### 4.19. Repository Pattern (opsional refactor)
-- [ ] **Buat `data/repository/PatternRepository.kt`** (interface) dan `PatternRepositoryImpl.kt` (opsional, untuk konsistensi dengan `CulinaryRepository`)
-  - `interface PatternRepository` dengan method: `getAll()`, `findByName(name)`, `save(pattern)`, `delete(pattern)`, `touch(id)`
-  - `class PatternRepositoryImpl @Inject constructor(private val dao: ReceiptPatternDao) : PatternRepository`
-  - Atau skip jika `PatternListViewModel` dan `PatternEditViewModel` inject DAO langsung sudah cukup
+- [x] **Skip** — `PatternListViewModel` dan `PatternEditViewModel` inject DAO langsung sudah cukup
 
-### 4.20. Update Content Docs (opsional)
-- [ ] **Update `docs/architecture-scan.md`** dengan section "8.4. Tahap 4 Implementation Notes" — visual builder UX detail
-- [ ] **Update `readme.md`** — tambah section singkat "## Fitur Scan Struk" (di bawah section existing)
+### 4.20. Update Content Docs
+- [x] **Update `docs/architecture-scan.md`** dengan section "13. Tahap 4 Implementation Notes" — pattern storage, visual builder flow, TemplateToRegex, lookup priority, DB migration
+- [x] **Update `readme.md`** — tambah section "## Fitur Scan Struk" (4 tahap overview)

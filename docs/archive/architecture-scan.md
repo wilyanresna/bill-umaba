@@ -587,3 +587,64 @@ Disimpan di `app/src/test/resources/receipts/`:
 - Custom ML model training untuk parser improvement
 - Pattern recommendation engine
 - Receipt templates library (download dari server)
+
+---
+
+## 13. Tahap 4 Implementation Notes — Dynamic Pattern
+
+### 13.1. Pattern Storage
+
+Pattern disimpan di tabel `receipt_patterns` (Room DB v2). Key fields:
+
+| Field | Tipe | Fungsi |
+|---|---|---|
+| `restaurantName` | String (unique) | Key lookup (case-insensitive) |
+| `menuLineTemplate` | String | Template regex via `TemplateToRegex.convert()` |
+| `totalLineStrategy` | Enum string | BIGGEST_TOTAL_KEYWORD / LAST_LINE / CUSTOM_REGEX |
+| `restaurantNameStrategy` | Enum string | FIRST_LINE / FIRST_TWO_LINES / AUTO_TOP |
+| `skipKeywords` | CSV string | Baris yang di-skip (misal: "subtotal,pajak,diskon") |
+| `usageCount` / `lastUsedAt` | Int / Long | Tracking frekuensi pemakaian |
+
+### 13.2. Visual Builder — Flow
+
+```
+PatternEditScreen
+  ├── Basic Info (nama restoran, tipe parser)
+  ├── Sumber Nama (RadioButton: FIRST_LINE / FIRST_TWO_LINES / AUTO_TOP)
+  ├── Template Item (AssistChip tokens + OutlinedTextField + Separator dropdown)
+  ├── Grand Total Strategy (RadioButton + optional custom regex)
+  ├── Field Opsional (Switch + Regex per field: tax/service/discount/date)
+  ├── Skip Keywords (FilterChip + input + suggestion chips)
+  ├── Header Lines (number input)
+  ├── Test Section (gallery photo → OCR → parse → preview result)
+  ├── Advanced (collapsible: raw regex display)
+  └── Save Button
+```
+
+### 13.3. TemplateToRegex Conversion
+
+Template tokens: `{qty}`, `{name}`, `{price}`, `{subtotal}`
+
+Contoh:
+- Input: `{qty}x {name} {price}`
+- Output: `(?<qty>\d+)x (?<name>.+?) (?<price>[\d.,]+)`
+
+Proses: escape entire template → replace escaped tokens dengan named groups.
+
+### 13.4. Pattern Lookup Priority di ReceiptParserFactory
+
+```
+1. Jika restaurantName ada → patternDao.findByName()
+   ├── Pattern ditemukan → PatternReceiptParser(pattern)
+   └── Pattern tidak ada → lanjut ke step 2
+2. Override type oleh user → parser yang sesuai
+3. Auto-detect dari keyword → parser yang sesuai
+```
+
+`patternDao.touch(id, timestamp)` dipanggil setiap kali pattern dipakai (update lastUsedAt + usageCount).
+
+### 13.5. DB Migration v1→v2
+
+Migration ditulis di `Migrations.kt`. Menggunakan `addMigrations()` di DatabaseModule (bukan destructive). Tabel `receipt_patterns` dibuat dengan `CREATE TABLE IF NOT EXISTS` + `CREATE UNIQUE INDEX IF NOT EXISTS`.
+
+Test migrasi ada di `androidTest/.../MigrationTest.kt` — verifikasi data existing tetap ada dan tabel baru kosong.

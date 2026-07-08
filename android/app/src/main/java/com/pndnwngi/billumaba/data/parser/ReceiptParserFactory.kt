@@ -1,5 +1,6 @@
 package com.pndnwngi.billumaba.data.parser
 
+import com.pndnwngi.billumaba.data.database.dao.ReceiptPatternDao
 import com.pndnwngi.billumaba.data.ocr.OcrResult
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -8,10 +9,24 @@ import javax.inject.Singleton
 class ReceiptParserFactory @Inject constructor(
     private val generalParser: GeneralReceiptParser,
     private val restaurantParser: RestaurantReceiptParser,
-    private val retailParser: RetailThermalParser
+    private val retailParser: RetailThermalParser,
+    private val patternDao: ReceiptPatternDao
 ) {
 
-    fun parse(ocr: OcrResult, overrideType: ParserType? = null): ParsedReceipt {
+    suspend fun parse(
+        ocr: OcrResult,
+        restaurantName: String? = null,
+        overrideType: ParserType? = null
+    ): ParsedReceipt {
+        // 1. Pattern lookup if restaurantName is provided
+        if (!restaurantName.isNullOrBlank()) {
+            val pattern = patternDao.findByName(restaurantName)
+            if (pattern != null) {
+                patternDao.touch(pattern.id, System.currentTimeMillis())
+                return PatternReceiptParser(pattern).parse(ocr)
+            }
+        }
+        // 2. Auto-detect or override
         val type = overrideType ?: autoDetectType(ocr)
         val parser = when (type) {
             ParserType.GENERAL -> generalParser
