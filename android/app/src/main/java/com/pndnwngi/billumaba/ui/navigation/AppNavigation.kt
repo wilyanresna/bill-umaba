@@ -1,19 +1,29 @@
 package com.pndnwngi.billumaba.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.pndnwngi.billumaba.data.ocr.OcrResult
 import com.pndnwngi.billumaba.ui.addedit.AddEditScreen
 import com.pndnwngi.billumaba.ui.dashboard.DashboardScreen
 import com.pndnwngi.billumaba.ui.detail.DetailScreen
+import com.pndnwngi.billumaba.ui.ocr.OcrReviewScreen
 
 @Composable
 fun AppNavigation(
     navController: NavHostController
 ) {
+    // Shared OCR result between AddEditScreen and OcrReviewScreen.
+    // Stored at NavHost level so both composables can access it.
+    var pendingOcrResult by rememberSaveable { mutableStateOf<OcrResult?>(null) }
+
     NavHost(
         navController = navController,
         startDestination = Screen.Dashboard.route
@@ -39,6 +49,17 @@ fun AppNavigation(
             )
         ) {
             AddEditScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOcrReview = { ocrResult ->
+                    pendingOcrResult = ocrResult
+                    navController.navigate(Screen.OcrReview.route)
+                }
+            )
+        }
+
+        composable(route = Screen.OcrReview.route) {
+            OcrReviewScreen(
+                ocrResult = pendingOcrResult,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

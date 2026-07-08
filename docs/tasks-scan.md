@@ -127,12 +127,12 @@
   - `implementation(libs.kotlinx.coroutines.play.services)`
 
 ### 2.2. OCR Data Models
-- [ ] **Buat `data/ocr/OcrModels.kt`**
+- [x] **Buat `data/ocr/OcrModels.kt`**
   - `data class OcrResult(val lines: List<OcrLine>)`
   - `data class OcrLine(val text: String, val boundingBox: android.graphics.Rect?, val confidence: Float?)`
 
 ### 2.3. ReceiptOcrEngine
-- [ ] **Buat `data/ocr/ReceiptOcrEngine.kt`**
+- [x] **Buat `data/ocr/ReceiptOcrEngine.kt`**
   - `@Singleton class ReceiptOcrEngine @Inject constructor()`
   - Private field: `TextRecognition.getClient(LatinTextRecognizerOptions.Builder().build())`
   - `suspend fun recognize(context: Context, imageUri: Uri): OcrResult`
@@ -141,18 +141,18 @@
   - Map `Text.TextBlock` → list of `OcrLine`
 
 ### 2.4. Hilt Module
-- [ ] **Buat `di/OcrModule.kt`** (placeholder, jika perlu)
+- [x] **Buat `di/OcrModule.kt`** (placeholder, jika perlu)
   - `@Module @InstallIn(SingletonComponent::class) object OcrModule`
   - Note: tidak wajib karena `ReceiptOcrEngine` sudah `@Singleton` + constructor-injectable
 
 ### 2.5. Modifikasi AddEditUiState — OCR Fields
-- [ ] **Edit `ui/addedit/AddEditUiState.kt`**
+- [x] **Edit `ui/addedit/AddEditUiState.kt`**
   - Tambah field:
     - `isRunningOcr: Boolean = false`
     - `ocrResult: OcrResult? = null`
 
 ### 2.6. Modifikasi AddEditViewModel — OCR Handler
-- [ ] **Edit `ui/addedit/AddEditViewModel.kt`**
+- [x] **Edit `ui/addedit/AddEditViewModel.kt`**
   - Inject `ReceiptOcrEngine`
   - Tambah handler `runOcr()`:
     - Ambil `existingPhotoPath` dari state
@@ -163,7 +163,7 @@
   - Tambah `onOcrConsumed()` untuk clear `ocrResult` setelah dipakai OcrReviewScreen
 
 ### 2.7. OcrReviewScreen — UI State
-- [ ] **Buat `ui/ocr/OcrReviewUiState.kt`**
+- [x] **Buat `ui/ocr/OcrReviewUiState.kt`**
   - `isLoading: Boolean = false`
   - `ocrResult: OcrResult? = null`
   - `editedLines: List<String> = emptyList()` (text editable per line, mirror dari ocrResult)
@@ -174,7 +174,7 @@
   - `isProcessingParse: Boolean = false` (untuk Tahap 3)
 
 ### 2.8. OcrReviewScreen — ViewModel
-- [ ] **Buat `ui/ocr/OcrReviewViewModel.kt`**
+- [x] **Buat `ui/ocr/OcrReviewViewModel.kt`**
   - `@HiltViewModel`
   - Inject `AddEditViewModel` via Hilt (shared activity scope) **atau** baca `ocrResult` dari `SavedStateHandle`
   - Pattern yang dipilih: inject `AddEditViewModel` melalui `viewModels()` di activity scope — dokumentasikan pilihan di code comment
@@ -185,7 +185,7 @@
   - Error handling: `errorMessage` jika OCR gagal
 
 ### 2.9. OcrReviewScreen — UI
-- [ ] **Buat `ui/ocr/OcrReviewScreen.kt`**
+- [x] **Buat `ui/ocr/OcrReviewScreen.kt`**
   - TopAppBar: "Review Hasil OCR" + back button
   - Loading indicator saat `isLoading` atau `isRunningOcr`
   - List baris OCR dengan `LazyColumn`:
@@ -196,21 +196,21 @@
   - Pakai M3 components: `OutlinedTextField`, `AssistChip`, `Button`, `CircularProgressIndicator`
 
 ### 2.10. Navigation — Tambah Route
-- [ ] **Edit `ui/navigation/Screen.kt`**
+- [x] **Edit `ui/navigation/Screen.kt`**
   - Tambah `data object OcrReview : Screen("ocr_review")`
 
-- [ ] **Edit `ui/navigation/AppNavigation.kt`**
+- [x] **Edit `ui/navigation/AppNavigation.kt`**
   - Tambah `composable("ocr_review") { OcrReviewScreen(onNavigateBack = ...) }`
   - Pass data: pakai `AddEditViewModel` activity-scoped (dokumentasikan di comment) **atau** `SavedStateHandle` dengan key `ocrResult`
 
 ### 2.11. Modifikasi AddEditScreen — Tombol Ekstrak Teks
-- [ ] **Edit `ui/addedit/AddEditScreen.kt`**
+- [x] **Edit `ui/addedit/AddEditScreen.kt`**
   - Di `PhotoSection` (saat `hasPhoto == true`), tambah tombol `OutlinedButton "Ekstrak Teks"` di bawah preview foto
   - Tombol disabled saat `isRunningOcr`
   - OnClick → panggil `viewModel.runOcr()` lalu `onNavigateToOcrReview()` (callback parameter)
   - Tambah parameter `onNavigateToOcrReview: () -> Unit` di `AddEditScreen` signature
 
-- [ ] **Edit `ui/navigation/AppNavigation.kt`**
+- [x] **Edit `ui/navigation/AppNavigation.kt`**
   - Di composable `add_edit`, wire up `onNavigateToOcrReview = { navController.navigate("ocr_review") }`
 
 ---

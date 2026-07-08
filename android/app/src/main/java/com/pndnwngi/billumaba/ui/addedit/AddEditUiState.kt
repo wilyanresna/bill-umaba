@@ -1,5 +1,7 @@
 package com.pndnwngi.billumaba.ui.addedit
 
+import com.pndnwngi.billumaba.data.ocr.OcrResult
+
 data class MenuItemInput(
     val name: String = "",
     val quantity: String = "1",
@@ -35,7 +37,9 @@ data class AddEditUiState(
     val isProcessingScan: Boolean = false,
     val pendingGalleryUri: String? = null,
     val showRapikanDialog: Boolean = false,
-    val showGmsFallbackDialog: Boolean = false
+    val showGmsFallbackDialog: Boolean = false,
+    val isRunningOcr: Boolean = false,
+    val ocrResult: OcrResult? = null
 ) {
     val calculatedGrandTotal: Double
         get() = menuItems.sumOf { it.subtotal }

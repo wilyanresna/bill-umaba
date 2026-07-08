@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pndnwngi.billumaba.data.database.entities.MenuItemEntity
 import com.pndnwngi.billumaba.data.database.entities.VisitEntity
+import com.pndnwngi.billumaba.data.ocr.ReceiptOcrEngine
 import com.pndnwngi.billumaba.data.repository.CulinaryRepository
 import com.pndnwngi.billumaba.data.storage.ImageCompressor
 import com.pndnwngi.billumaba.data.storage.StorageManager
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -27,6 +29,7 @@ class AddEditViewModel @Inject constructor(
     private val repository: CulinaryRepository,
     private val imageCompressor: ImageCompressor,
     private val storageManager: StorageManager,
+    private val ocrEngine: ReceiptOcrEngine,
     @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -136,6 +139,23 @@ class AddEditViewModel @Inject constructor(
 
     fun dismissGmsFallbackDialog() {
         _uiState.update { it.copy(showGmsFallbackDialog = false) }
+    }
+
+    fun runOcr() {
+        val photoPath = _uiState.value.existingPhotoPath ?: return
+        _uiState.update { it.copy(isRunningOcr = true) }
+        viewModelScope.launch {
+            try {
+                val result = ocrEngine.recognize(context, Uri.fromFile(File(photoPath)))
+                _uiState.update { it.copy(ocrResult = result, isRunningOcr = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isRunningOcr = false) }
+            }
+        }
+    }
+
+    fun onOcrConsumed() {
+        _uiState.update { it.copy(ocrResult = null) }
     }
 
     fun onMenuItemNameChanged(index: Int, name: String) {

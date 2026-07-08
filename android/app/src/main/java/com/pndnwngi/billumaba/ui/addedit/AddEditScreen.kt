@@ -71,6 +71,7 @@ import java.util.Locale
 @Composable
 fun AddEditScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToOcrReview: (com.pndnwngi.billumaba.data.ocr.OcrResult) -> Unit = { },
     viewModel: AddEditViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -97,6 +98,14 @@ fun AddEditScreen(
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) {
             onNavigateBack()
+        }
+    }
+
+    LaunchedEffect(uiState.ocrResult) {
+        val ocrResult = uiState.ocrResult
+        if (ocrResult != null) {
+            onNavigateToOcrReview(ocrResult)
+            viewModel.onOcrConsumed()
         }
     }
 
@@ -136,12 +145,16 @@ fun AddEditScreen(
                 PhotoSection(
                     photoUri = uiState.receiptPhotoUri,
                     existingPhotoPath = uiState.existingPhotoPath,
+                    isRunningOcr = uiState.isRunningOcr,
                     onPhotoSelected = viewModel::onPhotoSelected,
                     onPhotoRemoved = viewModel::onPhotoRemoved,
                     onScanRequested = launchReceiptScanner,
                     onCameraRequested = { uri -> viewModel.onPhotoSelected(uri.toString()) },
                     onGalleryRequested = { galleryLauncher.launch("image/*") },
-                    onRescanRequested = launchReceiptScanner
+                    onRescanRequested = launchReceiptScanner,
+                    onExtractText = {
+                        viewModel.runOcr()
+                    }
                 )
 
                 RestaurantInfoSection(
@@ -290,12 +303,14 @@ fun AddEditScreen(
 private fun PhotoSection(
     photoUri: String?,
     existingPhotoPath: String?,
+    isRunningOcr: Boolean,
     onPhotoSelected: (String) -> Unit,
     onPhotoRemoved: () -> Unit,
     onScanRequested: () -> Unit,
     onCameraRequested: (Uri) -> Unit,
     onGalleryRequested: () -> Unit,
-    onRescanRequested: () -> Unit
+    onRescanRequested: () -> Unit,
+    onExtractText: () -> Unit
 ) {
     val hasPhoto = photoUri != null || existingPhotoPath != null
 
@@ -339,6 +354,21 @@ private fun PhotoSection(
                     onChangePhoto = onGalleryRequested,
                     onRescan = onRescanRequested
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onExtractText,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isRunningOcr
+                ) {
+                    if (isRunningOcr) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(text = "Ekstrak Teks")
+                }
             } else {
                 PhotoPicker(
                     onScanRequested = onScanRequested,
