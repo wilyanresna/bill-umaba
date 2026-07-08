@@ -104,7 +104,7 @@
   - Tampilkan `CircularProgressIndicator` overlay saat `isProcessingScan = true`
 
 ### 1.8. Update Architecture Docs (opsional)
-- [ ] **Append section ke `docs/architecture-scan.md`**
+- [x] **Append section ke `docs/architecture-scan.md`**
   - Section "8.1. Tahap 1 Implementation Notes" — flow diagram dan dependencies ML Kit Document Scanner
 
 ---

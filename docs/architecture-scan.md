@@ -398,30 +398,64 @@ fun rememberReceiptScanner(
     onGmsUnavailable: () -> Unit
 ): () -> Unit {
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(StartScan()) { result ->
-        if (result != null) {
-            val scanner = GmsDocumentScanning.getClient(
-                GmsDocumentScannerOptions.Builder()
-                    .setScannerMode(SCANNER_MODE_FULL)
-                    .setGalleryImportAllowed(false)
-                    .setResultFormats(RESULT_FORMAT_JPEG)
-                    .setPageLimit(1)
-                    .build()
-            )
-            // Note: launcher result handling varies by API version
-            // Use Task<ScanResult> await pattern
+
+    val options = remember {
+        GmsDocumentScannerOptions.Builder()
+            .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+            .setGalleryImportAllowed(false)
+            .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
+            .setPageLimit(1)
+            .build()
+    }
+
+    val scanner = remember { GmsDocumentScanning.getClient(options) }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { activityResult ->
+        if (activityResult.resultCode == Activity.RESULT_OK) {
+            val result = GmsDocumentScanningResult.fromActivityResultIntent(activityResult.data)
+            val pages = result?.getPages()
+            if (pages != null && pages.isNotEmpty()) {
+                onResult(pages[0].getImageUri())
+            } else {
+                onResult(null)
+            }
+        } else {
+            onResult(null)
         }
     }
-    return {
-        val availability = GoogleApiAvailability.getInstance()
-        if (availability.isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS) {
-            // launch scanner
-        } else {
-            onGmsUnavailable()
+
+    return remember {
+        {
+            if (isGooglePlayServicesAvailable(context)) {
+                val activity = context as? Activity
+                if (activity == null) {
+                    onGmsUnavailable()
+                    return@remember
+                }
+
+                scanner.getStartScanIntent(activity)
+                    .addOnSuccessListener { intentSender ->
+                        val request = IntentSenderRequest.Builder(intentSender).build()
+                        launcher.launch(request)
+                    }
+                    .addOnFailureListener {
+                        onGmsUnavailable()
+                    }
+            } else {
+                onGmsUnavailable()
+            }
         }
     }
 }
 ```
+
+**Key API decisions:**
+- Uses `ActivityResultContracts.StartIntentSenderForResult()` for Document Scanner result
+- `GmsDocumentScanningResult.fromActivityResultIntent(data)` to parse result (not `fromResultIntent`)
+- `pages[0].getImageUri()` for JPEG URI access
+- GMS availability checked via `GoogleApiAvailability` before launching
 
 ### 8.2. Tahap 2 — `ReceiptOcrEngine`
 
