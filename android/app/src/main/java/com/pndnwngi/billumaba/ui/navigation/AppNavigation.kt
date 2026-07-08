@@ -1,6 +1,7 @@
 package com.pndnwngi.billumaba.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -11,7 +12,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.pndnwngi.billumaba.data.ocr.OcrResult
+import com.pndnwngi.billumaba.data.parser.ParsedReceipt
 import com.pndnwngi.billumaba.ui.addedit.AddEditScreen
+import com.pndnwngi.billumaba.ui.addedit.AddEditViewModel
 import com.pndnwngi.billumaba.ui.dashboard.DashboardScreen
 import com.pndnwngi.billumaba.ui.detail.DetailScreen
 import com.pndnwngi.billumaba.ui.ocr.OcrReviewScreen
@@ -23,6 +26,9 @@ fun AppNavigation(
     // Shared OCR result between AddEditScreen and OcrReviewScreen.
     // Stored at NavHost level so both composables can access it.
     var pendingOcrResult by rememberSaveable { mutableStateOf<OcrResult?>(null) }
+
+    // Shared parsed receipt from OcrReviewScreen back to AddEditScreen.
+    var pendingParsedReceipt by rememberSaveable { mutableStateOf<ParsedReceipt?>(null) }
 
     NavHost(
         navController = navController,
@@ -47,20 +53,39 @@ fun AppNavigation(
                     defaultValue = -1L
                 }
             )
-        ) {
+        ) { entry ->
+            // Retrieve the AddEditViewModel scoped to this composable.
+            // We use hiltViewModel() via AddEditScreen, but need access here
+            // to apply the parsed receipt from OcrReviewScreen.
+            val addEditViewModel: AddEditViewModel = androidx.hilt.navigation.compose.hiltViewModel(entry)
+
+            // Consume pending parsed receipt if any
+            LaunchedEffect(pendingParsedReceipt) {
+                val parsed = pendingParsedReceipt
+                if (parsed != null) {
+                    addEditViewModel.applyParsedReceipt(parsed)
+                    pendingParsedReceipt = null
+                }
+            }
+
             AddEditScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToOcrReview = { ocrResult ->
                     pendingOcrResult = ocrResult
                     navController.navigate(Screen.OcrReview.route)
-                }
+                },
+                viewModel = addEditViewModel
             )
         }
 
         composable(route = Screen.OcrReview.route) {
             OcrReviewScreen(
                 ocrResult = pendingOcrResult,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onApplyParsedReceipt = { parsed ->
+                    pendingParsedReceipt = parsed
+                    navController.popBackStack()
+                }
             )
         }
 

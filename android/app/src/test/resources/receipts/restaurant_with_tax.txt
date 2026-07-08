@@ -1,0 +1,17 @@
+Warung Padang Sederhana
+Jl. Gatot Subroto No. 45
+
+Nasi Rendang      35.000
+Ayam Bakar        40.000
+Es Teh Manis       8.000
+Padang Campur     45.000
+
+Subtotal         128.000
+Pajak Restoran 10% 12.800
+Service Charge 5%   6.400
+Diskon Membership -10.000
+
+Grand Total      137.200
+
+Tunai           150.000
+Kembali          12.800

@@ -18,10 +18,15 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -30,18 +35,25 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pndnwngi.billumaba.data.ocr.OcrResult
+import com.pndnwngi.billumaba.data.parser.ParsedReceipt
+import com.pndnwngi.billumaba.data.parser.ParserType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OcrReviewScreen(
     ocrResult: OcrResult?,
     onNavigateBack: () -> Unit,
+    onApplyParsedReceipt: (ParsedReceipt) -> Unit = {},
     viewModel: OcrReviewViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -150,13 +162,133 @@ fun OcrReviewScreen(
                 }
             }
 
+            // Parser Type Detection Section
+            ParserTypeSection(
+                detectedType = uiState.detectedParserType,
+                overrideType = uiState.parserTypeOverride,
+                parsedReceipt = uiState.parsedReceipt,
+                onOverrideChanged = { viewModel.setParserTypeOverride(it) }
+            )
+
             Button(
-                onClick = { viewModel.applyToForm(onNavigateBack) },
+                onClick = {
+                    viewModel.applyToForm { parsed ->
+                        onApplyParsedReceipt(parsed)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = uiState.editedLines.isNotEmpty()
+                enabled = uiState.editedLines.isNotEmpty() && uiState.parsedReceipt != null
             ) {
                 Text(text = "Pakai Hasil Scan")
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ParserTypeSection(
+    detectedType: ParserType?,
+    overrideType: ParserType?,
+    parsedReceipt: ParsedReceipt?,
+    onOverrideChanged: (ParserType?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val currentType = overrideType ?: detectedType
+    val currentLabel = currentType?.displayName ?: "Umum"
+
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Detected type label
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Tipe Struk:",
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Text(
+                    text = "Terdeteksi sebagai: $currentLabel",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Dropdown to override
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it }
+            ) {
+                OutlinedTextField(
+                    value = currentLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Override Tipe") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Auto") },
+                        onClick = {
+                            onOverrideChanged(null)
+                            expanded = false
+                        }
+                    )
+                    ParserType.entries.forEach { type ->
+                        DropdownMenuItem(
+                            text = { Text(type.displayName) },
+                            onClick = {
+                                onOverrideChanged(type)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Parsed receipt summary
+            if (parsedReceipt != null) {
+                val summaryParts = mutableListOf<String>()
+                summaryParts.add("${parsedReceipt.itemCount} item")
+                if (parsedReceipt.grandTotal != null) {
+                    summaryParts.add("Total Rp ${formatPrice(parsedReceipt.grandTotal)}")
+                }
+                if (parsedReceipt.tax != null) {
+                    summaryParts.add("Pajak Rp ${formatPrice(parsedReceipt.tax)}")
+                }
+                if (parsedReceipt.service != null) {
+                    summaryParts.add("Service Rp ${formatPrice(parsedReceipt.service)}")
+                }
+                if (parsedReceipt.discount != null) {
+                    summaryParts.add("Diskon Rp ${formatPrice(parsedReceipt.discount)}")
+                }
+
+                Text(
+                    text = summaryParts.joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+private fun formatPrice(value: Double): String {
+    val formatted = "%,.0f".format(value).replace(",", ".")
+    return formatted
 }

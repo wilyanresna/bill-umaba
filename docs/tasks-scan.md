@@ -220,149 +220,132 @@
 **Tujuan:** Parse OCR result → ParsedReceipt. 3 parser preset (General, Restaurant, Retail Thermal). Auto-detect dari keyword. User bisa override tipe.
 
 ### 3.1. Parser Data Models
-- [ ] **Buat `data/parser/ParsedReceipt.kt`**
+- [x] **Buat `data/parser/ParsedReceipt.kt`**
   - `data class ParsedReceipt(...)` — field: detectedParserType, restaurantName, menuItems, grandTotal, tax, service, discount, visitDate
-  - `enum class ParserType { GENERAL, RESTAURANT, RETAIL_THERMAL }`
+  - `enum class ParserType { GENERAL, RESTAURANT, RETAIL_THERMAL }` dengan `displayName` property
   - `data class ParsedMenuItem(name, quantity, price, subtotal)`
+  - `summaryText` computed property untuk preview
 
 ### 3.2. ReceiptParser Interface
-- [ ] **Buat `data/parser/ReceiptParser.kt`**
+- [x] **Buat `data/parser/ReceiptParser.kt`** (dipindah ke `ParsedReceipt.kt`)
   - `interface ReceiptParser { fun parse(ocr: OcrResult): ParsedReceipt }`
 
 ### 3.3. GeneralReceiptParser
-- [ ] **Buat `data/parser/GeneralReceiptParser.kt`**
+- [x] **Buat `data/parser/GeneralReceiptParser.kt`**
   - `@Singleton class GeneralReceiptParser @Inject constructor() : ReceiptParser`
-  - Regex constants (private vals di companion object atau top-level):
-    - `PRICE_REGEX` — match angka dengan/tanpa `Rp`/`IDR`, format Indonesia (titik ribuan, koma decimal)
+  - Regex constants:
+    - `PRICE_REGEX` — match angka dengan/tanpa `Rp`/`IDR`, format Indonesia
     - `QTY_REGEX` — match `2x`, `2 x`, `2*` di awal baris
-    - `TOTAL_KEYWORDS` — list: `["total", "grand total", "jumlah", "tagihan", "amount due"]`
-    - `TAX_KEYWORDS` — list: `["pajak", "ppn", "tax"]`
-    - `SERVICE_KEYWORDS` — list: `["service", "service charge", "pelayanan", "pb1"]`
-    - `DISCOUNT_KEYWORDS` — list: `["diskon", "discount", "potongan", "voucher"]`
-    - `DATE_REGEX` — match `dd/MM/yyyy`, `dd-MM-yy`, `dd MMM yyyy`
-    - `ADDRESS_KEYWORDS` — list: `["jl", "jalan", "no.", "telp", "phone"]` (untuk skip nama restaurant)
+    - `TOTAL_KEYWORDS`, `TAX_KEYWORDS`, `SERVICE_KEYWORDS`, `DISCOUNT_KEYWORDS`, `SKIP_KEYWORDS`
+    - `ADDRESS_KEYWORDS` — untuk skip nama restaurant
+    - `DATE_REGEXES` — match dd/MM/yyyy, dd-MM-yy, dd MMM yyyy, yyyy-MM-dd
   - Implement `parse(ocr: OcrResult): ParsedReceipt`:
     - `extractRestaurantName(lines)`: 1-2 line teratas, filter yang mengandung `ADDRESS_KEYWORDS`
-    - `extractMenuItems(lines)`: line yang punya price match `PRICE_REGEX`, exclude line dengan `TOTAL_KEYWORDS`/`TAX_KEYWORDS`/`SERVICE_KEYWORDS`/`DISCOUNT_KEYWORDS`
-    - `extractGrandTotal(lines)`: cari line dengan `TOTAL_KEYWORDS` (prioritas "grand total" > "total") + angka terbesar
-    - `extractTax/Service/Discount(lines)`: cari line dengan keyword + extract price
-    - `extractDate(lines)`: scan semua line untuk `DATE_REGEX`
+    - `extractMenuItems(lines)`: line yang punya price, exclude line dengan total/tax/service/discount keywords
+    - `extractGrandTotal(lines)`: cari line dengan total keywords + angka terbesar
+    - `extractByKeywords(lines, keywords)`: generic helper untuk tax/service/discount
+    - `extractDate(lines)`: scan semua line untuk date patterns
   - Helper `parsePrice(string)`: normalize "25.000" atau "25,000" atau "25000" → Double
-  - Helper `parseQuantity(name)`: extract qty dari awal nama (e.g. "2x Nasi Goreng" → qty=2, name="Nasi Goreng")
+  - Helper `parseMenuLine(line)`: extract qty + name + price dari satu baris
 
 ### 3.4. RestaurantReceiptParser
-- [ ] **Buat `data/parser/RestaurantReceiptParser.kt`**
-  - `@Singleton class RestaurantReceiptParser @Inject constructor() : ReceiptParser`
-  - Pakai **composition** (bukan inheritance dari General) — instance `GeneralReceiptParser` sebagai helper
+- [x] **Buat `data/parser/RestaurantReceiptParser.kt`**
+  - `@Singleton class RestaurantReceiptParser @Inject constructor(private val generalParser: GeneralReceiptParser) : ReceiptParser`
+  - Uses composition (bukan inheritance) dengan `GeneralReceiptParser`
   - Logic tambahan:
     - Identifikasi section "Subtotal" sebagai boundary items vs summary
     - Items hanya dari line sebelum "Subtotal"
-    - Pajak + Service diparse terpisah (Pajak Restoran + Service Charge)
+    - Pajak + Service diparse terpisah dari summary section
     - Discount diparse dari section antara Subtotal dan Grand Total
-    - Grand Total = max angka setelah keyword "Total" / "Grand Total" di section summary
-  - Pakai `PRICE_REGEX` & `DATE_REGEX` dari companion (duplicate constants atau extract ke file terpisah `ParserRegex.kt`)
+    - Grand Total prioritaskan "Grand Total" > "Total" > "Jumlah"
 
 ### 3.5. RetailThermalParser
-- [ ] **Buat `data/parser/RetailThermalParser.kt`**
-  - `@Singleton class RetailThermalParser @Inject constructor() : ReceiptParser`
-  - Deteksi keyword cash register: `["tunai", "kembali", "kembalian", "bayar", "kartu", "debit", "credit"]`
+- [x] **Buat `data/parser/RetailThermalParser.kt`**
+  - `@Singleton class RetailThermalParser @Inject constructor(private val generalParser: GeneralReceiptParser) : ReceiptParser`
+  - Deteksi keyword cash register: tunai, kembali, kembalian, bayar, kartu, debit, credit
   - Item format support:
-    - Format 1: `Nama   Qty x Harga = Subtotal` (aligned columns)
+    - Format 1: `Nama  Qty x Harga = Subtotal` (aligned columns)
     - Format 2: `Nama  Harga` (satu angka per line, qty implicit 1)
+  - Auto-skip promo: potongan, disc, hemat, voucher
   - Total di section bawah sebelum "Tunai/Kembali"
-  - Auto-skip promo: `["potongan", "disc", "hemat", "voucher"]`
-  - Extract `Tunai` (bayar) dan `Kembali` (change) sebagai field tambahan di `ParsedReceipt` (perlu tambah `cashPaid` dan `cashChange` ke `ParsedReceipt` — atau skip jika tidak perlu)
 
 ### 3.6. ReceiptParserFactory
-- [ ] **Buat `data/parser/ReceiptParserFactory.kt`**
-  - `@Singleton class ReceiptParserFactory @Inject constructor(...)`
-  - Constructor params: `GeneralReceiptParser`, `RestaurantReceiptParser`, `RetailThermalParser`
-  - `fun parse(ocr: OcrResult, overrideType: ParserType? = null): ParsedReceipt`:
-    - Pilih parser type: `overrideType ?: autoDetectType(ocr)`
-    - Panggil parser sesuai type
-    - Return ParsedReceipt (override `detectedParserType` di result dengan type yang dipakai)
-  - `private fun autoDetectType(ocr: OcrResult): ParserType`:
-    - Lowercase + join semua `OcrLine.text` jadi satu string
-    - Cek keyword:
-      - Cash register markers (`tunai`/`kembali`/`kembalian`/`bayar`/`kartu`) → `RETAIL_THERMAL`
-      - Resto markers (`pajak`/`ppn`/`service` + `subtotal`/`sub total`) → `RESTAURANT`
-      - Else → `GENERAL`
+- [x] **Buat `data/parser/ReceiptParserFactory.kt`**
+  - `@Singleton class ReceiptParserFactory @Inject constructor(generalParser, restaurantParser, retailParser)`
+  - `fun parse(ocr: OcrResult, overrideType: ParserType? = null): ParsedReceipt`
+  - `fun autoDetectType(ocr: OcrResult): ParserType`:
+    - Cash register markers → `RETAIL_THERMAL`
+    - Subtotal + pajak/service → `RESTAURANT`
+    - Else → `GENERAL`
 
 ### 3.7. Hilt Module
-- [ ] **Buat `di/ParserModule.kt`** (opsional, hanya jika perlu qualifier)
-  - Default: 3 parser sudah concrete-class dengan `@Inject constructor`, jadi Hilt auto-resolve — tidak perlu module
-  - Module ini hanya untuk binding `ReceiptParserFactory` jika perlu
+- [x] **Skip** — 3 parser + factory sudah concrete-class dengan `@Inject constructor`, Hilt auto-resolve
 
 ### 3.8. Modifikasi OcrReviewUiState (Tahap 3 fields)
-- [ ] **Edit `ui/ocr/OcrReviewUiState.kt`**
-  - Tambah field (Tahap 3):
-    - `detectedParserType: ParserType? = null`
-    - `parsedReceipt: ParsedReceipt? = null`
-  - Field existing: `parserTypeOverride: ParserType? = null` (sudah ada di Tahap 2)
-  - Hapus `isProcessingParse` (gabung dengan `isLoading`)
+- [x] **Sudah ada** — field `detectedParserType`, `parsedReceipt`, `parserTypeOverride` sudah ada dari Tahap 2
 
 ### 3.9. Modifikasi OcrReviewViewModel — Parser Integration
-- [ ] **Edit `ui/ocr/OcrReviewViewModel.kt`**
+- [x] **Edit `ui/ocr/OcrReviewViewModel.kt`**
   - Inject `ReceiptParserFactory`
   - Handler `runDetection()`:
-    - Bangun `OcrResult` baru dari `editedLines` (user-edited text tetap dipakai)
-    - Launch viewModelScope
-    - Set `isLoading = true`
+    - Bangun `OcrResult` baru dari `editedLines`
     - Panggil `factory.parse(editedOcr, parserTypeOverride)`
     - Set `parsedReceipt = result`, `detectedParserType = result.detectedParserType`
-    - Set `isLoading = false`
-  - Auto-run `runDetection()` di `init` block setelah `loadOcrResult()` selesai
+  - Auto-run `runDetection()` di `loadOcrResult()` setelah populate `editedLines`
   - Handler `setParserTypeOverride(type: ParserType?)`:
-    - Update state
-    - Trigger `runDetection()` ulang
-  - Handler `applyToForm(onApplied: () -> Unit)`:
-    - Panggil `addEditViewModel.applyParsedReceipt(parsedReceipt)`
-    - Panggil `addEditViewModel.onOcrConsumed()` (clear ocrResult)
-    - Panggil `onApplied()` (navigate back)
+    - Update state, trigger `runDetection()` ulang
+  - Handler `applyToForm(onApplied: (ParsedReceipt) -> Unit)`:
+    - Panggil `onApplied(parsedReceipt)` — callback ke caller
 
 ### 3.10. Modifikasi OcrReviewScreen — UI Parser Section
-- [ ] **Edit `ui/ocr/OcrReviewScreen.kt`**
-  - Aktifkan section "Tipe Struk" yang sebelumnya placeholder:
-    - Label dinamis: "✓ Terdeteksi sebagai: **[detectedParserType.displayName]**" (di bawah list baris)
+- [x] **Edit `ui/ocr/OcrReviewScreen.kt`**
+  - Parser type section:
+    - Label: "Terdeteksi sebagai: [detectedParserType.displayName]"
     - `ExposedDropdownMenuBox` dengan opsi: "Auto", "Umum", "Resto", "Retail"
-      - "Auto" → `setParserTypeOverride(null)` (gunakan auto-detect)
-      - "Umum/Resto/Retail" → `setParserTypeOverride(ParserType.XXX)`
     - On change → `viewModel.setParserTypeOverride(...)`
-  - Preview parsed result ringkas di bawah dropdown: "X item, Total Rp XXX.XXX" (parsed dari `parsedReceipt`)
-  - Tombol "Pakai Hasil Scan" → `viewModel.applyToForm(onApplied = onNavigateBack)`
+  - Preview parsed result: "X item · Total Rp XXX.XXX"
+  - Tombol "Pakai Hasil Scan" → `viewModel.applyToForm { parsed -> onApplyParsedReceipt(parsed) }`
+  - Parameter `onApplyParsedReceipt: (ParsedReceipt) -> Unit` di signature
 
 ### 3.11. Modifikasi AddEditViewModel — Apply Parsed Receipt
-- [ ] **Edit `ui/addedit/AddEditViewModel.kt`**
-  - Inject `ReceiptParserFactory` (jika perlu akses langsung, atau via OcrReviewViewModel)
+- [x] **Edit `ui/addedit/AddEditViewModel.kt`**
   - Handler `applyParsedReceipt(parsed: ParsedReceipt)`:
-    - Update `restaurantName = parsed.restaurantName.takeUnless { it.isNullOrBlank() } ?: state.restaurantName`
-    - Update `visitDate = parsed.visitDate ?: state.visitDate`
-    - Replace `menuItems` dengan `parsed.menuItems.map { MenuItemInput(name = ..., quantity = ..., price = ..., rating = 5.0f, notes = "") }`
-    - Override `grandTotal`: set `isGrandTotalOverridden = true`, `grandTotalOverride = parsed.grandTotal.toString()` (jika `parsed.grandTotal != null`)
-    - Set `ocrResult = null` (clear setelah apply)
+    - Update `restaurantName` (jika parsed tidak kosong)
+    - Replace `menuItems` dengan `parsed.menuItems.map { MenuItemInput(...) }`
+    - Set `grandTotalOverride` dan `isGrandTotalOverridden`
+    - Set `visitDate` jika ada
+    - Clear `ocrResult = null`
+
+- [x] **Edit `ui/navigation/AppNavigation.kt`**
+  - Tambah `pendingParsedReceipt` shared state
+  - Wire up `onApplyParsedReceipt` callback di OcrReviewScreen
+  - Consume `pendingParsedReceipt` di AddEdit composable
 
 ### 3.12. Unit Tests untuk Parser
-- [ ] **Buat `app/src/test/java/com/pndnwngi/billumaba/data/parser/GeneralReceiptParserTest.kt`**
+- [x] **Buat `app/src/test/java/com/pndnwngi/billumaba/data/parser/GeneralReceiptParserTest.kt`**
   - Test dengan `OcrResult` hardcoded dari fixture struk café
   - Assert: `restaurantName`, `menuItems.size`, `grandTotal`, `tax == null`
+  - Test: `parsePrice` handles Indonesian format, `extractDate`, quantity parsing
 
-- [ ] **Buat `app/src/test/java/com/pndnwngi/billumaba/data/parser/RestaurantReceiptParserTest.kt`**
+- [x] **Buat `app/src/test/java/com/pndnwngi/billumaba/data/parser/RestaurantReceiptParserTest.kt`**
   - Test dengan `OcrResult` hardcoded dari fixture struk resto
   - Assert: `tax != null`, `service != null`, `grandTotal` = expected
+  - Test: items only before subtotal, grand total prioritization, fallback to subtotal
 
-- [ ] **Buat `app/src/test/java/com/pndnwngi/billumaba/data/parser/RetailThermalParserTest.kt`**
+- [x] **Buat `app/src/test/java/com/pndnwngi/billumaba/data/parser/RetailThermalParserTest.kt`**
   - Test dengan `OcrResult` hardcoded dari fixture struk Indomaret
-  - Assert: item count, total, tunai, kembali
+  - Assert: item count, total, qty x price format, promo skipped
+  - Test: format 2 (name + price only), tax/service null
 
-- [ ] **Buat `app/src/test/java/com/pndnwngi/billumaba/data/parser/ReceiptParserFactoryTest.kt`**
+- [x] **Buat `app/src/test/java/com/pndnwngi/billumaba/data/parser/ReceiptParserFactoryTest.kt`**
   - Test auto-detect untuk 3 tipe dari `OcrResult` berbeda
   - Test override type diprioritaskan dari auto-detect
+  - Test parse untuk 3 tipe
 
-- [ ] **Buat fixture files di `app/src/test/resources/receipts/`**
-  - `simple_cafe.txt` — list of OCR lines untuk struk café
-  - `restaurant_with_tax.txt` — list of OCR lines untuk struk resto
-  - `indomaret.txt` — list of OCR lines untuk struk Indomaret
-  - Helper `OcrResult.fromFixture(filename: String): OcrResult` (di test util atau per-test inline)
+- [x] **Buat fixture files di `app/src/test/resources/receipts/`**
+  - `simple_cafe.txt` — struk café sederhana (GeneralParser)
+  - `restaurant_with_tax.txt` — struk resto dengan PPN + service (RestaurantParser)
+  - `indomaret.txt` — struk retail dengan Tunai/Kembali (RetailParser)
 
 ---
 

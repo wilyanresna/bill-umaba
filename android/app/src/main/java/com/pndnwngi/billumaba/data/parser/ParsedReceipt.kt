@@ -11,9 +11,30 @@ data class ParsedReceipt(
     val service: Double? = null,
     val discount: Double? = null,
     val visitDate: Long? = null
-)
+) {
+    val itemCount: Int get() = menuItems.size
 
-enum class ParserType { GENERAL, RESTAURANT, RETAIL_THERMAL }
+    val summaryText: String
+        get() {
+            val parts = mutableListOf<String>()
+            parts.add("$itemCount item")
+            if (grandTotal != null) {
+                parts.add("Total Rp ${formatPrice(grandTotal)}")
+            }
+            return parts.joinToString(", ")
+        }
+
+    private fun formatPrice(value: Double): String {
+        val formatted = "%,.0f".format(value).replace(",", ".")
+        return formatted
+    }
+}
+
+enum class ParserType(val displayName: String) {
+    GENERAL("Umum"),
+    RESTAURANT("Resto"),
+    RETAIL_THERMAL("Retail")
+}
 
 data class ParsedMenuItem(
     val name: String,

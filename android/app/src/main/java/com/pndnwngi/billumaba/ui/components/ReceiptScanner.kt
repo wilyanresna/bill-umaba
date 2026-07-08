@@ -22,7 +22,7 @@ fun rememberReceiptScanner(
 
     val options = remember {
         GmsDocumentScannerOptions.Builder()
-            .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+            .setScannerMode(GmsDocumentScannerOptions.CAPTURE_MODE_MANUAL)
             .setGalleryImportAllowed(false)
             .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
             .setPageLimit(1)

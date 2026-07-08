@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.pndnwngi.billumaba.data.database.entities.MenuItemEntity
 import com.pndnwngi.billumaba.data.database.entities.VisitEntity
 import com.pndnwngi.billumaba.data.ocr.ReceiptOcrEngine
+import com.pndnwngi.billumaba.data.parser.ParsedReceipt
 import com.pndnwngi.billumaba.data.repository.CulinaryRepository
 import com.pndnwngi.billumaba.data.storage.ImageCompressor
 import com.pndnwngi.billumaba.data.storage.StorageManager
@@ -156,6 +157,35 @@ class AddEditViewModel @Inject constructor(
 
     fun onOcrConsumed() {
         _uiState.update { it.copy(ocrResult = null) }
+    }
+
+    fun applyParsedReceipt(parsed: ParsedReceipt) {
+        _uiState.update { state ->
+            val newRestaurantName = parsed.restaurantName
+                ?.takeIf { it.isNotBlank() }
+                ?: state.restaurantName
+
+            val newMenuItems = parsed.menuItems.map { item ->
+                MenuItemInput(
+                    name = item.name,
+                    quantity = item.quantity.toString(),
+                    price = item.price.toBigDecimal().toPlainString(),
+                    rating = 5.0f,
+                    notes = ""
+                )
+            }.ifEmpty { state.menuItems }
+
+            val newVisitDate = parsed.visitDate ?: state.visitDate
+
+            state.copy(
+                restaurantName = newRestaurantName,
+                visitDate = newVisitDate,
+                menuItems = newMenuItems,
+                grandTotalOverride = parsed.grandTotal?.toBigDecimal()?.toPlainString() ?: "",
+                isGrandTotalOverridden = parsed.grandTotal != null,
+                ocrResult = null
+            )
+        }
     }
 
     fun onMenuItemNameChanged(index: Int, name: String) {
