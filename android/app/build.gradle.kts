@@ -85,6 +85,10 @@ dependencies {
     implementation(libs.androidx.mlkit.document.scanner)
     implementation(libs.play.services.base)
 
+    // ML Kit Text Recognition Latin (OCR)
+    implementation(libs.androidx.mlkit.text.recognition.latin)
+    implementation(libs.kotlinx.coroutines.play.services)
+
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

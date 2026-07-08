@@ -114,15 +114,15 @@
 **Tujuan:** Dari foto struk yang sudah ada, extract text + koordinat per line. Tampilkan di OcrReviewScreen yang editable.
 
 ### 2.1. Setup Dependency
-- [ ] **Tambah ML Kit Text Recognition Latin ke `libs.versions.toml`**
+- [x] **Tambah ML Kit Text Recognition Latin ke `libs.versions.toml`**
   - Version: `16.0.0.1`
   - Library entry: `androidx-mlkit-text-recognition-latin`
 
-- [ ] **Tambah kotlinx-coroutines-play-services ke `libs.versions.toml`**
+- [x] **Tambah kotlinx-coroutines-play-services ke `libs.versions.toml`**
   - Version: `1.8.1`
   - Library entry: `kotlinx-coroutines-play-services`
 
-- [ ] **Tambah dependencies ke `app/build.gradle.kts`**
+- [x] **Tambah dependencies ke `app/build.gradle.kts`**
   - `implementation(libs.androidx.mlkit.text.recognition.latin)`
   - `implementation(libs.kotlinx.coroutines.play.services)`
 

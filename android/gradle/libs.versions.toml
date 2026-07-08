@@ -15,6 +15,8 @@ navigationCompose = "2.8.3"
 ksp = "2.0.21-1.0.28"
 coil = "2.7.0"
 mlkitDocumentScanner = "16.0.0"
+mlkitTextRecognitionLatin = "16.0.1"
+coroutinesPlayServices = "1.8.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,6 +53,12 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 # ML Kit Document Scanner
 androidx-mlkit-document-scanner = { group = "com.google.android.gms", name = "play-services-mlkit-document-scanner", version.ref = "mlkitDocumentScanner" }
 play-services-base = { group = "com.google.android.gms", name = "play-services-base", version = "18.5.0" }
+
+# ML Kit Text Recognition Latin
+androidx-mlkit-text-recognition-latin = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognitionLatin" }
+
+# Coroutines Play Services
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
