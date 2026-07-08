@@ -3,9 +3,7 @@ package com.pndnwngi.billumaba.di
 import android.content.Context
 import androidx.room.Room
 import com.pndnwngi.billumaba.data.database.AppDatabase
-import com.pndnwngi.billumaba.data.database.MIGRATION_1_2
 import com.pndnwngi.billumaba.data.database.dao.MenuDao
-import com.pndnwngi.billumaba.data.database.dao.ReceiptPatternDao
 import com.pndnwngi.billumaba.data.database.dao.VisitDao
 import dagger.Module
 import dagger.Provides
@@ -27,7 +25,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "bill_umaba_db"
-        ).addMigrations(MIGRATION_1_2).build()
+        ).fallbackToDestructiveMigrationOnDowngrade().build()
     }
 
     @Provides
@@ -40,11 +38,5 @@ object DatabaseModule {
     @Singleton
     fun provideMenuDao(appDatabase: AppDatabase): MenuDao {
         return appDatabase.menuDao()
-    }
-
-    @Provides
-    @Singleton
-    fun provideReceiptPatternDao(appDatabase: AppDatabase): ReceiptPatternDao {
-        return appDatabase.receiptPatternDao()
     }
 }

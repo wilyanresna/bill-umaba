@@ -3,6 +3,7 @@ package com.pndnwngi.billumaba.ui.addedit
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,10 +12,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,6 +40,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -52,7 +56,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -71,7 +77,6 @@ import java.util.Locale
 @Composable
 fun AddEditScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToOcrReview: (com.pndnwngi.billumaba.data.ocr.OcrResult) -> Unit = { },
     viewModel: AddEditViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -101,14 +106,6 @@ fun AddEditScreen(
         }
     }
 
-    LaunchedEffect(uiState.ocrResult) {
-        val ocrResult = uiState.ocrResult
-        if (ocrResult != null) {
-            onNavigateToOcrReview(ocrResult)
-            viewModel.onOcrConsumed()
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -134,6 +131,7 @@ fun AddEditScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .imePadding()
         ) {
             Column(
                 modifier = Modifier
@@ -151,10 +149,7 @@ fun AddEditScreen(
                     onScanRequested = launchReceiptScanner,
                     onCameraRequested = { uri -> viewModel.onPhotoSelected(uri.toString()) },
                     onGalleryRequested = { galleryLauncher.launch("image/*") },
-                    onRescanRequested = launchReceiptScanner,
-                    onExtractText = {
-                        viewModel.runOcr()
-                    }
+                    onRescanRequested = launchReceiptScanner
                 )
 
                 RestaurantInfoSection(
@@ -166,7 +161,9 @@ fun AddEditScreen(
                     onNameChanged = viewModel::onRestaurantNameChanged,
                     onAddressChanged = viewModel::onRestaurantAddressChanged,
                     onRatingChanged = viewModel::onRestaurantRatingChanged,
-                    onReviewChanged = viewModel::onRestaurantReviewChanged
+                    onReviewChanged = viewModel::onRestaurantReviewChanged,
+                    ocrLines = uiState.ocrLines,
+                    getSuggestions = viewModel::getSuggestions
                 )
 
                 DateSection(
@@ -184,7 +181,9 @@ fun AddEditScreen(
                     onRatingChanged = viewModel::onMenuItemRatingChanged,
                     onNotesChanged = viewModel::onMenuItemNotesChanged,
                     onAddItem = viewModel::addMenuItem,
-                    onRemoveItem = viewModel::removeMenuItem
+                    onRemoveItem = viewModel::removeMenuItem,
+                    ocrLines = uiState.ocrLines,
+                    getSuggestions = viewModel::getSuggestions
                 )
 
                 GrandTotalSection(
@@ -193,7 +192,9 @@ fun AddEditScreen(
                     overrideValue = uiState.grandTotalOverride,
                     isOverridden = uiState.isGrandTotalOverridden,
                     onOverrideChanged = viewModel::onGrandTotalOverrideChanged,
-                    onResetOverride = viewModel::onResetGrandTotalOverride
+                    onResetOverride = viewModel::onResetGrandTotalOverride,
+                    ocrLines = uiState.ocrLines,
+                    getSuggestions = viewModel::getSuggestions
                 )
 
                 Button(
@@ -300,6 +301,80 @@ fun AddEditScreen(
 }
 
 @Composable
+private fun AutoCompleteTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    suggestions: List<String>,
+    label: String,
+    modifier: Modifier = Modifier,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    singleLine: Boolean = true,
+    isError: Boolean = false,
+    supportingText: @Composable (() -> Unit)? = null
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var textFieldValue by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+
+    LaunchedEffect(value) {
+        if (textFieldValue.text != value) {
+            textFieldValue = TextFieldValue(value, TextRange(value.length))
+        }
+    }
+
+    Column(modifier = modifier) {
+        OutlinedTextField(
+            value = textFieldValue,
+            onValueChange = { tfv ->
+                textFieldValue = tfv
+                onValueChange(tfv.text)
+                expanded = tfv.text.isNotEmpty()
+            },
+            label = { Text(label) },
+            singleLine = singleLine,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    suggestions.firstOrNull()?.let { first ->
+                        onValueChange(first)
+                        textFieldValue = TextFieldValue(first, TextRange(first.length))
+                        expanded = false
+                    }
+                }
+            ),
+            isError = isError,
+            supportingText = supportingText,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        if (expanded && suggestions.isNotEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.extraSmall,
+                shadowElevation = 8.dp,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column {
+                    suggestions.forEach { suggestion ->
+                        Text(
+                            text = suggestion,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onValueChange(suggestion)
+                                    textFieldValue = TextFieldValue(suggestion, TextRange(suggestion.length))
+                                    expanded = false
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun PhotoSection(
     photoUri: String?,
     existingPhotoPath: String?,
@@ -309,8 +384,7 @@ private fun PhotoSection(
     onScanRequested: () -> Unit,
     onCameraRequested: (Uri) -> Unit,
     onGalleryRequested: () -> Unit,
-    onRescanRequested: () -> Unit,
-    onExtractText: () -> Unit
+    onRescanRequested: () -> Unit
 ) {
     val hasPhoto = photoUri != null || existingPhotoPath != null
 
@@ -354,20 +428,21 @@ private fun PhotoSection(
                     onChangePhoto = onGalleryRequested,
                     onRescan = onRescanRequested
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = onExtractText,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isRunningOcr
-                ) {
-                    if (isRunningOcr) {
+                if (isRunningOcr) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Mengekstrak teks...",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
-                    Text(text = "Ekstrak Teks")
                 }
             } else {
                 PhotoPicker(
@@ -390,7 +465,9 @@ private fun RestaurantInfoSection(
     onNameChanged: (String) -> Unit,
     onAddressChanged: (String) -> Unit,
     onRatingChanged: (Float) -> Unit,
-    onReviewChanged: (String) -> Unit
+    onReviewChanged: (String) -> Unit,
+    ocrLines: List<String>,
+    getSuggestions: (FieldType, String) -> List<String>
 ) {
     OutlinedCard(
         modifier = Modifier.fillMaxWidth()
@@ -407,24 +484,22 @@ private fun RestaurantInfoSection(
                 fontWeight = FontWeight.Bold
             )
 
-            OutlinedTextField(
+            AutoCompleteTextField(
                 value = name,
                 onValueChange = onNameChanged,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Nama Tempat *") },
+                suggestions = getSuggestions(FieldType.TEXT, name),
+                label = "Nama Tempat *",
                 isError = nameError,
                 supportingText = if (nameError) {
                     { Text("Nama tempat wajib diisi") }
-                } else null,
-                singleLine = true
+                } else null
             )
 
-            OutlinedTextField(
+            AutoCompleteTextField(
                 value = address,
                 onValueChange = onAddressChanged,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Alamat") },
-                singleLine = true
+                suggestions = getSuggestions(FieldType.TEXT, address),
+                label = "Alamat"
             )
 
             Column {
@@ -499,7 +574,9 @@ private fun MenuItemsSection(
     onRatingChanged: (Int, Float) -> Unit,
     onNotesChanged: (Int, String) -> Unit,
     onAddItem: () -> Unit,
-    onRemoveItem: (Int) -> Unit
+    onRemoveItem: (Int) -> Unit,
+    ocrLines: List<String>,
+    getSuggestions: (FieldType, String) -> List<String>
 ) {
     OutlinedCard(
         modifier = Modifier.fillMaxWidth()
@@ -543,7 +620,9 @@ private fun MenuItemsSection(
                     onPriceChanged = { onPriceChanged(index, it) },
                     onRatingChanged = { onRatingChanged(index, it) },
                     onNotesChanged = { onNotesChanged(index, it) },
-                    onRemove = { onRemoveItem(index) }
+                    onRemove = { onRemoveItem(index) },
+                    ocrLines = ocrLines,
+                    getSuggestions = getSuggestions
                 )
             }
         }
@@ -560,7 +639,9 @@ private fun MenuItemCard(
     onPriceChanged: (String) -> Unit,
     onRatingChanged: (Float) -> Unit,
     onNotesChanged: (String) -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    ocrLines: List<String>,
+    getSuggestions: (FieldType, String) -> List<String>
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -599,33 +680,32 @@ private fun MenuItemCard(
                 }
             }
 
-            OutlinedTextField(
+            AutoCompleteTextField(
                 value = menuItem.name,
                 onValueChange = onNameChanged,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Nama Menu") },
-                singleLine = true
+                suggestions = getSuggestions(FieldType.TEXT, menuItem.name),
+                label = "Nama Menu"
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
+                AutoCompleteTextField(
                     value = menuItem.quantity,
                     onValueChange = onQuantityChanged,
+                    suggestions = getSuggestions(FieldType.NUMERIC, menuItem.quantity),
+                    label = "Jumlah",
                     modifier = Modifier.weight(1f),
-                    label = { Text("Jumlah") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
-                OutlinedTextField(
+                AutoCompleteTextField(
                     value = menuItem.price,
                     onValueChange = onPriceChanged,
+                    suggestions = getSuggestions(FieldType.NUMERIC, menuItem.price),
+                    label = "Harga Satuan",
                     modifier = Modifier.weight(2f),
-                    label = { Text("Harga Satuan") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                 )
             }
 
@@ -666,7 +746,9 @@ private fun GrandTotalSection(
     overrideValue: String,
     isOverridden: Boolean,
     onOverrideChanged: (String) -> Unit,
-    onResetOverride: () -> Unit
+    onResetOverride: () -> Unit,
+    ocrLines: List<String>,
+    getSuggestions: (FieldType, String) -> List<String>
 ) {
     OutlinedCard(
         modifier = Modifier.fillMaxWidth()
@@ -695,13 +777,13 @@ private fun GrandTotalSection(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
+                    AutoCompleteTextField(
                         value = overrideValue,
                         onValueChange = onOverrideChanged,
+                        suggestions = getSuggestions(FieldType.NUMERIC, overrideValue),
+                        label = "Override Total",
                         modifier = Modifier.weight(1f),
-                        label = { Text("Override Total") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                     )
                     TextButton(onClick = onResetOverride) {
                         Text("Reset")

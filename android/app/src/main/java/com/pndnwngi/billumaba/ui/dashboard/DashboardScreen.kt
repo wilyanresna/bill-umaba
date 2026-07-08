@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -62,7 +61,6 @@ import java.util.Locale
 fun DashboardScreen(
     onNavigateToAdd: () -> Unit,
     onNavigateToDetail: (Long) -> Unit,
-    onNavigateToPatterns: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -78,13 +76,6 @@ fun DashboardScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ),
                 actions = {
-                    IconButton(onClick = onNavigateToPatterns) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Manajemen Pattern",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
                     Box {
                         TextButton(onClick = { showSortMenu = true }) {
                             Text(

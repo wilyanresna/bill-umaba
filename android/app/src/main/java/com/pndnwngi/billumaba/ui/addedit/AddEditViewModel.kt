@@ -5,12 +5,9 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.pndnwngi.billumaba.data.database.dao.ReceiptPatternDao
 import com.pndnwngi.billumaba.data.database.entities.MenuItemEntity
-import com.pndnwngi.billumaba.data.database.entities.ReceiptPatternEntity
 import com.pndnwngi.billumaba.data.database.entities.VisitEntity
 import com.pndnwngi.billumaba.data.ocr.ReceiptOcrEngine
-import com.pndnwngi.billumaba.data.parser.ParsedReceipt
 import com.pndnwngi.billumaba.data.repository.CulinaryRepository
 import com.pndnwngi.billumaba.data.storage.ImageCompressor
 import com.pndnwngi.billumaba.data.storage.StorageManager
@@ -33,7 +30,6 @@ class AddEditViewModel @Inject constructor(
     private val imageCompressor: ImageCompressor,
     private val storageManager: StorageManager,
     private val ocrEngine: ReceiptOcrEngine,
-    private val patternDao: ReceiptPatternDao,
     @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -103,7 +99,7 @@ class AddEditViewModel @Inject constructor(
     }
 
     fun onPhotoRemoved() {
-        _uiState.update { it.copy(receiptPhotoUri = null, existingPhotoPath = null) }
+        _uiState.update { it.copy(receiptPhotoUri = null, existingPhotoPath = null, ocrLines = emptyList()) }
     }
 
     fun onScannedPhoto(uri: Uri) {
@@ -118,6 +114,9 @@ class AddEditViewModel @Inject constructor(
                         receiptPhotoUri = null,
                         isProcessingScan = false
                     )
+                }
+                if (path != null) {
+                    runOcrForPhoto(path)
                 }
             } else {
                 _uiState.update { it.copy(isProcessingScan = false) }
@@ -145,50 +144,22 @@ class AddEditViewModel @Inject constructor(
         _uiState.update { it.copy(showGmsFallbackDialog = false) }
     }
 
-    fun runOcr() {
-        val photoPath = _uiState.value.existingPhotoPath ?: return
+    private fun runOcrForPhoto(path: String) {
         _uiState.update { it.copy(isRunningOcr = true) }
         viewModelScope.launch {
             try {
-                val result = ocrEngine.recognize(context, Uri.fromFile(File(photoPath)))
-                _uiState.update { it.copy(ocrResult = result, isRunningOcr = false) }
+                val result = ocrEngine.recognize(context, Uri.fromFile(File(path)))
+                val lines = result.lines.map { it.text }
+                _uiState.update { it.copy(ocrLines = lines, isRunningOcr = false) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isRunningOcr = false) }
             }
         }
     }
 
-    fun onOcrConsumed() {
-        _uiState.update { it.copy(ocrResult = null) }
-    }
-
-    fun applyParsedReceipt(parsed: ParsedReceipt) {
-        _uiState.update { state ->
-            val newRestaurantName = parsed.restaurantName
-                ?.takeIf { it.isNotBlank() }
-                ?: state.restaurantName
-
-            val newMenuItems = parsed.menuItems.map { item ->
-                MenuItemInput(
-                    name = item.name,
-                    quantity = item.quantity.toString(),
-                    price = item.price.toBigDecimal().toPlainString(),
-                    rating = 5.0f,
-                    notes = ""
-                )
-            }.ifEmpty { state.menuItems }
-
-            val newVisitDate = parsed.visitDate ?: state.visitDate
-
-            state.copy(
-                restaurantName = newRestaurantName,
-                visitDate = newVisitDate,
-                menuItems = newMenuItems,
-                grandTotalOverride = parsed.grandTotal?.toBigDecimal()?.toPlainString() ?: "",
-                isGrandTotalOverridden = parsed.grandTotal != null,
-                ocrResult = null
-            )
-        }
+    fun getSuggestions(fieldType: FieldType, query: String): List<String> {
+        val numericOnly = fieldType == FieldType.NUMERIC
+        return TokenMatcher.filter(_uiState.value.ocrLines, query, numericOnly)
     }
 
     fun onMenuItemNameChanged(index: Int, name: String) {
@@ -237,16 +208,6 @@ class AddEditViewModel @Inject constructor(
 
     fun onResetGrandTotalOverride() {
         _uiState.update { it.copy(grandTotalOverride = "", isGrandTotalOverridden = false) }
-    }
-
-    fun saveCurrentOcrAsPattern(pattern: ReceiptPatternEntity) {
-        viewModelScope.launch {
-            patternDao.upsert(pattern)
-        }
-    }
-
-    fun onNavigateToPatternEdit(onNavigate: () -> Unit) {
-        onNavigate()
     }
 
     private fun updateMenuItem(index: Int, transform: (MenuItemInput) -> MenuItemInput) {
@@ -314,4 +275,9 @@ class AddEditViewModel @Inject constructor(
             }
         }
     }
+}
+
+enum class FieldType {
+    TEXT,
+    NUMERIC
 }
