@@ -1,7 +1,10 @@
 package com.pndnwngi.billumaba.ui.addedit
 
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,12 +54,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.pndnwngi.billumaba.ui.components.PhotoPicker
+import com.pndnwngi.billumaba.ui.components.PhotoPickerWithPhoto
 import com.pndnwngi.billumaba.ui.components.StarRatingDisplay
 import com.pndnwngi.billumaba.ui.components.StarRatingInput
+import com.pndnwngi.billumaba.ui.components.rememberReceiptScanner
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -69,6 +76,23 @@ fun AddEditScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showDatePicker by remember { mutableStateOf(false) }
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")) }
+
+    val launchReceiptScanner = rememberReceiptScanner(
+        onResult = { uri ->
+            if (uri != null) {
+                viewModel.onScannedPhoto(uri)
+            }
+        },
+        onGmsUnavailable = {
+            viewModel.onGmsFallback()
+        }
+    )
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.onGalleryPhotoSelected(it.toString()) }
+    }
 
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) {
@@ -97,80 +121,140 @@ fun AddEditScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            PhotoSection(
-                photoUri = uiState.receiptPhotoUri,
-                existingPhotoPath = uiState.existingPhotoPath,
-                onPhotoSelected = viewModel::onPhotoSelected,
-                onPhotoRemoved = viewModel::onPhotoRemoved
-            )
-
-            RestaurantInfoSection(
-                name = uiState.restaurantName,
-                address = uiState.restaurantAddress,
-                rating = uiState.restaurantRating,
-                review = uiState.restaurantReview,
-                nameError = uiState.restaurantNameError,
-                onNameChanged = viewModel::onRestaurantNameChanged,
-                onAddressChanged = viewModel::onRestaurantAddressChanged,
-                onRatingChanged = viewModel::onRestaurantRatingChanged,
-                onReviewChanged = viewModel::onRestaurantReviewChanged
-            )
-
-            DateSection(
-                date = uiState.visitDate,
-                dateFormat = dateFormat,
-                onDateClick = { showDatePicker = true }
-            )
-
-            MenuItemsSection(
-                menuItems = uiState.menuItems,
-                hasError = uiState.menuItemsError,
-                onNameChanged = viewModel::onMenuItemNameChanged,
-                onQuantityChanged = viewModel::onMenuItemQuantityChanged,
-                onPriceChanged = viewModel::onMenuItemPriceChanged,
-                onRatingChanged = viewModel::onMenuItemRatingChanged,
-                onNotesChanged = viewModel::onMenuItemNotesChanged,
-                onAddItem = viewModel::addMenuItem,
-                onRemoveItem = viewModel::removeMenuItem
-            )
-
-            GrandTotalSection(
-                calculatedTotal = uiState.calculatedGrandTotal,
-                displayTotal = uiState.displayGrandTotal,
-                overrideValue = uiState.grandTotalOverride,
-                isOverridden = uiState.isGrandTotalOverridden,
-                onOverrideChanged = viewModel::onGrandTotalOverrideChanged,
-                onResetOverride = viewModel::onResetGrandTotalOverride
-            )
-
-            Button(
-                onClick = viewModel::save,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isSaving
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (uiState.isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
-                    Text(
-                        text = if (uiState.isEditMode) "Simpan Perubahan" else "Simpan Catatan",
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                PhotoSection(
+                    photoUri = uiState.receiptPhotoUri,
+                    existingPhotoPath = uiState.existingPhotoPath,
+                    onPhotoSelected = viewModel::onPhotoSelected,
+                    onPhotoRemoved = viewModel::onPhotoRemoved,
+                    onScanRequested = launchReceiptScanner,
+                    onCameraRequested = { uri -> viewModel.onPhotoSelected(uri.toString()) },
+                    onGalleryRequested = { galleryLauncher.launch("image/*") },
+                    onRescanRequested = launchReceiptScanner
+                )
+
+                RestaurantInfoSection(
+                    name = uiState.restaurantName,
+                    address = uiState.restaurantAddress,
+                    rating = uiState.restaurantRating,
+                    review = uiState.restaurantReview,
+                    nameError = uiState.restaurantNameError,
+                    onNameChanged = viewModel::onRestaurantNameChanged,
+                    onAddressChanged = viewModel::onRestaurantAddressChanged,
+                    onRatingChanged = viewModel::onRestaurantRatingChanged,
+                    onReviewChanged = viewModel::onRestaurantReviewChanged
+                )
+
+                DateSection(
+                    date = uiState.visitDate,
+                    dateFormat = dateFormat,
+                    onDateClick = { showDatePicker = true }
+                )
+
+                MenuItemsSection(
+                    menuItems = uiState.menuItems,
+                    hasError = uiState.menuItemsError,
+                    onNameChanged = viewModel::onMenuItemNameChanged,
+                    onQuantityChanged = viewModel::onMenuItemQuantityChanged,
+                    onPriceChanged = viewModel::onMenuItemPriceChanged,
+                    onRatingChanged = viewModel::onMenuItemRatingChanged,
+                    onNotesChanged = viewModel::onMenuItemNotesChanged,
+                    onAddItem = viewModel::addMenuItem,
+                    onRemoveItem = viewModel::removeMenuItem
+                )
+
+                GrandTotalSection(
+                    calculatedTotal = uiState.calculatedGrandTotal,
+                    displayTotal = uiState.displayGrandTotal,
+                    overrideValue = uiState.grandTotalOverride,
+                    isOverridden = uiState.isGrandTotalOverridden,
+                    onOverrideChanged = viewModel::onGrandTotalOverrideChanged,
+                    onResetOverride = viewModel::onResetGrandTotalOverride
+                )
+
+                Button(
+                    onClick = viewModel::save,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !uiState.isSaving
+                ) {
+                    if (uiState.isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text(
+                            text = if (uiState.isEditMode) "Simpan Perubahan" else "Simpan Catatan",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(32.dp))
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            if (uiState.isProcessingScan) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            text = "Memproses foto...",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    if (uiState.showRapikanDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onConfirmRapikan(false) },
+            title = { Text("Rapikan Foto") },
+            text = { Text("Rapikan foto dengan auto-scan?") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onConfirmRapikan(true) }) {
+                    Text("Ya")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onConfirmRapikan(false) }) {
+                    Text("Tidak")
+                }
+            }
+        )
+    }
+
+    if (uiState.showGmsFallbackDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissGmsFallbackDialog() },
+            title = { Text("Tidak Didukung") },
+            text = { Text("Perangkat tidak mendukung scan otomatis. Gunakan kamera biasa.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissGmsFallbackDialog() }) {
+                    Text("OK")
+                }
+            }
+        )
     }
 
     if (showDatePicker) {
@@ -207,7 +291,11 @@ private fun PhotoSection(
     photoUri: String?,
     existingPhotoPath: String?,
     onPhotoSelected: (String) -> Unit,
-    onPhotoRemoved: () -> Unit
+    onPhotoRemoved: () -> Unit,
+    onScanRequested: () -> Unit,
+    onCameraRequested: (Uri) -> Unit,
+    onGalleryRequested: () -> Unit,
+    onRescanRequested: () -> Unit
 ) {
     val hasPhoto = photoUri != null || existingPhotoPath != null
 
@@ -246,9 +334,16 @@ private fun PhotoSection(
                         .height(200.dp),
                     contentScale = ContentScale.Crop
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                PhotoPickerWithPhoto(
+                    onChangePhoto = onGalleryRequested,
+                    onRescan = onRescanRequested
+                )
             } else {
                 PhotoPicker(
-                    onPhotoSelected = { uri -> onPhotoSelected(uri.toString()) }
+                    onScanRequested = onScanRequested,
+                    onCameraRequested = onCameraRequested,
+                    onGalleryRequested = onGalleryRequested
                 )
             }
         }

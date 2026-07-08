@@ -31,7 +31,11 @@ data class AddEditUiState(
     val isSaving: Boolean = false,
     val isSaved: Boolean = false,
     val restaurantNameError: Boolean = false,
-    val menuItemsError: Boolean = false
+    val menuItemsError: Boolean = false,
+    val isProcessingScan: Boolean = false,
+    val pendingGalleryUri: String? = null,
+    val showRapikanDialog: Boolean = false,
+    val showGmsFallbackDialog: Boolean = false
 ) {
     val calculatedGrandTotal: Double
         get() = menuItems.sumOf { it.subtotal }

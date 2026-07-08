@@ -1,12 +1,17 @@
 package com.pndnwngi.billumaba.ui.addedit
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pndnwngi.billumaba.data.database.entities.MenuItemEntity
 import com.pndnwngi.billumaba.data.database.entities.VisitEntity
 import com.pndnwngi.billumaba.data.repository.CulinaryRepository
+import com.pndnwngi.billumaba.data.storage.ImageCompressor
+import com.pndnwngi.billumaba.data.storage.StorageManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +25,9 @@ import javax.inject.Inject
 @HiltViewModel
 class AddEditViewModel @Inject constructor(
     private val repository: CulinaryRepository,
+    private val imageCompressor: ImageCompressor,
+    private val storageManager: StorageManager,
+    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -89,6 +97,45 @@ class AddEditViewModel @Inject constructor(
 
     fun onPhotoRemoved() {
         _uiState.update { it.copy(receiptPhotoUri = null, existingPhotoPath = null) }
+    }
+
+    fun onScannedPhoto(uri: Uri) {
+        _uiState.update { it.copy(isProcessingScan = true) }
+        viewModelScope.launch {
+            val compressed = imageCompressor.compressImage(context, uri)
+            if (compressed != null) {
+                val path = storageManager.saveReceiptImage(compressed)
+                _uiState.update {
+                    it.copy(
+                        existingPhotoPath = path,
+                        receiptPhotoUri = null,
+                        isProcessingScan = false
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(isProcessingScan = false) }
+            }
+        }
+    }
+
+    fun onGalleryPhotoSelected(uri: String) {
+        _uiState.update { it.copy(pendingGalleryUri = uri, showRapikanDialog = true) }
+    }
+
+    fun onConfirmRapikan(yes: Boolean) {
+        val pendingUri = _uiState.value.pendingGalleryUri
+        _uiState.update { it.copy(showRapikanDialog = false, pendingGalleryUri = null) }
+        if (!yes && pendingUri != null) {
+            onScannedPhoto(Uri.parse(pendingUri))
+        }
+    }
+
+    fun onGmsFallback() {
+        _uiState.update { it.copy(showGmsFallbackDialog = true) }
+    }
+
+    fun dismissGmsFallbackDialog() {
+        _uiState.update { it.copy(showGmsFallbackDialog = false) }
     }
 
     fun onMenuItemNameChanged(index: Int, name: String) {

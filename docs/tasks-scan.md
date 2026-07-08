@@ -36,7 +36,7 @@
   - Return true jika `ConnectionResult.SUCCESS`
 
 ### 1.3. ReceiptScanner Composable
-- [ ] **Buat `ui/components/ReceiptScanner.kt`**
+- [x] **Buat `ui/components/ReceiptScanner.kt`**
   - `@Composable fun rememberReceiptScanner(onResult: (Uri?) -> Unit, onGmsUnavailable: () -> Unit): () -> Unit`
   - Pakai `rememberLauncherForActivityResult(StartScan())`
   - Konfigurasi `GmsDocumentScannerOptions`:
@@ -48,7 +48,7 @@
   - Handle result: extract first page Uri, panggil `onResult(uri)`
 
 ### 1.4. Modifikasi AddEditUiState
-- [ ] **Edit `ui/addedit/AddEditUiState.kt`**
+- [x] **Edit `ui/addedit/AddEditUiState.kt`**
   - Tambah field:
     - `isProcessingScan: Boolean = false`
     - `pendingGalleryUri: String? = null`
@@ -56,7 +56,7 @@
     - `showGmsFallbackDialog: Boolean = false`
 
 ### 1.5. Modifikasi AddEditViewModel
-- [ ] **Edit `ui/addedit/AddEditViewModel.kt`**
+- [x] **Edit `ui/addedit/AddEditViewModel.kt`**
   - Inject `ImageCompressor`, `StorageManager`, `@ApplicationContext Context` via Hilt (existing constructors)
   - Tambah handler `onScannedPhoto(uri: Uri)`:
     - Set `isProcessingScan = true`
@@ -74,7 +74,7 @@
     - Set `showGmsFallbackDialog = true`, lalu panggil `onCameraRequested` callback (parent handle)
 
 ### 1.6. Modifikasi PhotoPicker
-- [ ] **Edit `ui/components/PhotoPicker.kt`**
+- [x] **Edit `ui/components/PhotoPicker.kt`**
   - **Empty state**: ganti layout 2 tombol (Kamera/Galeri) jadi **1 tombol besar "Scan / Foto Struk"** (primary, full-width)
   - Tap tombol → tampilkan **ModalBottomSheet** dengan 3 opsi:
     - "Scan dengan auto-frame" (default focus, leading icon scanner)
@@ -85,7 +85,7 @@
   - Tambah callback `onScanRequested`, `onGalleryRequested`, `onCameraRequested`, `onRescanRequested`
 
 ### 1.7. Modifikasi AddEditScreen — Flow Integration
-- [ ] **Edit `ui/addedit/AddEditScreen.kt`**
+- [x] **Edit `ui/addedit/AddEditScreen.kt`**
   - Update `PhotoSection` signature: tambah parameter callbacks `onScanRequested`, `onGalleryRequested`, `onCameraRequested`, `onRescanRequested`
   - Wire up `rememberReceiptScanner` di `AddEditScreen` scope
   - **Empty state flow**:
