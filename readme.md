@@ -6,11 +6,9 @@ An offline-first Android application for tracking culinary expenses and reviews.
 
 - **Visit Logging** — Record restaurant name, address, date, and receipt photos
 - **Menu Item Tracking** — Add individual items with name, quantity, price, rating, and notes per menu
-- **Receipt Scanning** — 4-stage pipeline for digitizing paper receipts:
+- **Receipt Scanning** — 2-stage flow for digitizing paper receipts:
   1. **Auto-Frame** — ML Kit Document Scanner auto-straightens & crops the receipt; graceful fallback to regular camera if Google Play Services is unavailable
-  2. **OCR** — ML Kit Text Recognition Latin (on-device) extracts text; editable review screen
-  3. **Text Mapping** — Auto-parses OCR output into structured data using 3 preset parsers (General, Restaurant, Retail) with auto-detection
-  4. **Dynamic Patterns** — Save custom parsing rules per restaurant via a visual builder (no regex required); automatically applied on subsequent scans
+  2. **OCR** — ML Kit Text Recognition Latin (on-device) extracts text; results appear as token-based autocomplete suggestions in form fields while typing
 - **Dashboard** — Browse past visits with search, filter, and sort
 - **100% Offline** — All data stays on-device; zero data uploads
 
@@ -18,11 +16,11 @@ An offline-first Android application for tracking culinary expenses and reviews.
 
 | Category | Technology |
 |----------|-----------|
-| **Language** | Kotlin 2.0 |
+| **Language** | Kotlin 2.0.21 |
 | **UI** | Jetpack Compose + Material Design 3 (Material You) |
 | **Architecture** | MVVM + Repository pattern |
 | **DI** | Dagger Hilt |
-| **Database** | Room (SQLite, schema v2) |
+| **Database** | Room (SQLite, schema v1) |
 | **Navigation** | Jetpack Navigation Compose |
 | **Image Loading** | Coil |
 | **ML Kit** | Document Scanner + Text Recognition Latin (on-device) |
@@ -41,22 +39,20 @@ bill-umaba-v4/
 │       ├── build.gradle.kts        # App-level config (SDK, flavors, deps)
 │       └── src/
 │           ├── main/java/com/pndnwngi/billumaba/
-│           │   ├── di/              # Hilt DI modules
+│           │   ├── di/              # Hilt DI modules (Database, Repository, OCR)
+│           │   ├── util/            # Google Play Services availability check
 │           │   ├── data/
-│           │   │   ├── database/    # Room DB, entities, DAOs, migrations
-│           │   │   ├── ocr/         # ML Kit OCR engine
-│           │   │   ├── parser/      # Receipt parsers (general, restaurant, retail, pattern)
+│           │   │   ├── database/    # Room DB, entities, DAOs
+│           │   │   ├── ocr/         # ML Kit OCR engine & models
 │           │   │   ├── repository/  # Data access layer
 │           │   │   └── storage/     # File I/O & image compression
 │           │   └── ui/
 │           │       ├── theme/       # M3 dynamic theming
 │           │       ├── navigation/  # NavHost & screen routes
-│           │       ├── components/  # Shared composables
+│           │       ├── components/  # Shared composables (StarRating, PhotoPicker, ReceiptScanner)
 │           │       ├── dashboard/   # Visit list & metrics
-│           │       ├── addedit/     # Add/edit visit form + scanning
-│           │       ├── detail/      # Visit detail view
-│           │       ├── ocr/         # OCR review screen
-│           │       └── patterns/    # Pattern list & visual builder
+│           │       ├── addedit/     # Add/edit visit form + scanning + inline OCR
+│           │       └── detail/      # Visit detail view
 │           ├── test/                # Unit tests
 │           └── androidTest/         # Instrumented tests
 ├── docs/

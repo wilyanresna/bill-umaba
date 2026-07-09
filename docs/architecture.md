@@ -1,6 +1,6 @@
 # Architecture Document - Bill Umaba
 
-Dokumen ini mendefinisikan arsitektur perangkat lunak untuk aplikasi Android **Bill Umaba** (pencatat pengeluaran dan ulasan kuliner) dengan pendekatan **MVVM (Model-View-ViewModel)** yang bersifat *offline-first* dan bersih (*clean-ish architectural separation*).
+Dokumen ini mendefinisikan arsitektur perangkat lunak untuk aplikasi Android **Bill Umaba** (pencatat pengeluaran dan ulasan kuliner) dengan pendekatan **MVVM (Model-View-ViewModel)** yang bersifat *offline-first*.
 
 ---
 
@@ -14,24 +14,25 @@ graph TD
         ComposeView[Jetpack Compose Screens] <--> ViewModel[ViewModels & UI State]
     end
 
-    subgraph Domain_Layer [Domain Layer - Optional/Logical]
+    subgraph Domain_Layer [Domain Layer]
         ViewModel --> Repository[CulinaryRepository]
     end
 
     subgraph Data_Layer [Data Layer]
         Repository --> RoomDB[(Room Local Database)]
         Repository --> StorageManager[StorageManager & ImageCompressor]
+        Repository --> OcrEngine[ReceiptOcrEngine - ML Kit]
         StorageManager --> Disk[(Local Disk Storage)]
     end
 ```
 
 ### 1.1. Prinsip Utama
-1.  **Offline-First**: Semua data kunjungan disimpan secara lokal di database Room. Tidak ada ketergantungan pada koneksi internet.
-2.  **Single Source of Truth (SSOT)**: Database lokal (`RoomDB`) adalah satu-satunya sumber kebenaran untuk seluruh data transaksi.
-3.  **Unidirectional Data Flow (UDF)**:
-    *   **State** mengalir ke bawah (dari ViewModel ke UI Screen).
-    *   **Events/Intents** mengalir ke atas (dari UI Screen ke ViewModel).
-4.  **Aesthetics & M3**: Tampilan modern menggunakan **Material Design 3**, mendukung *Dynamic Color* (Material You) dan *Warm Fallback Theme*.
+1. **Offline-First**: Semua data kunjungan disimpan secara lokal di database Room. Tidak ada ketergantungan pada koneksi internet.
+2. **Single Source of Truth (SSOT)**: Database lokal (`RoomDB`) adalah satu-satunya sumber kebenaran untuk seluruh data transaksi.
+3. **Unidirectional Data Flow (UDF)**:
+    - **State** mengalir ke bawah (dari ViewModel ke UI Screen).
+    - **Events/Intents** mengalir ke atas (dari UI Screen ke ViewModel).
+4. **Aesthetics & M3**: Tampilan modern menggunakan **Material Design 3**, mendukung *Dynamic Color* (Material You) dan *Warm Fallback Theme*.
 
 ---
 
@@ -40,63 +41,48 @@ graph TD
 ### 2.1. Presentation Layer (UI)
 Bertanggung jawab atas tampilan visual aplikasi dan penanganan interaksi pengguna.
 
-*   **Jetpack Compose**: Digunakan secara eksklusif untuk membangun UI deklaratif.
-*   **State-Driven UI**: UI hanya merepresentasikan status terkini (`UiState`) yang dideklarasikan sebagai `StateFlow` di ViewModel.
-*   **ViewModels**:
-    *   Mewarisi `androidx.lifecycle.ViewModel`.
-    *   Mengambil dan mengolah data dari Repository untuk diubah menjadi state UI.
-    *   Bertanggung jawab mempertahankan state saat terjadi perubahan konfigurasi (seperti rotasi layar).
-    *   Menggunakan Coroutines Scope (`viewModelScope`) untuk operasi asinkron.
+- **Jetpack Compose**: Digunakan secara eksklusif untuk membangun UI deklaratif.
+- **State-Driven UI**: UI hanya merepresentasikan status terkini (`UiState`) yang dideklarasikan sebagai `StateFlow` di ViewModel.
+- **ViewModels**:
+    - Mewarisi `androidx.lifecycle.ViewModel`.
+    - Mengambil dan mengolah data dari Repository untuk diubah menjadi state UI.
+    - Bertanggung jawab mempertahankan state saat terjadi perubahan konfigurasi (seperti rotasi layar).
+    - Menggunakan Coroutines Scope (`viewModelScope`) untuk operasi asinkron.
 
 ### 2.2. Data Layer
 Bertanggung jawab untuk membaca dan menulis data ke sumber penyimpanan fisik (Database & File Storage).
 
-*   **Repository Pattern (`CulinaryRepository`)**:
-    *   Menyediakan API bersih bagi ViewModel untuk memanipulasi data kunjungan.
-    *   Menyembunyikan detail implementasi Room DB dan penyimpanan berkas struk.
-*   **Room Database**:
-    *   Penyimpanan terstruktur untuk data kunjungan kuliner dan item menu.
-    *   Mengembalikan data dalam bentuk aliran asinkron (`Flow<T>`) agar UI dapat otomatis terbarui ketika ada perubahan data.
-*   **Storage Manager**:
-    *   Mengelola penyimpanan fisik gambar struk di dalam direktori penyimpanan internal aplikasi (`Context.filesDir`).
-*   **Image Compressor**:
-    *   Melakukan kompresi gambar struk menjadi format JPEG/WebP sebelum disimpan ke disk untuk memastikan ukuran file **maksimal 500 KB** (persyaratan PRD).
+- **Repository Pattern (`CulinaryRepository`)**:
+    - Menyediakan API bersih bagi ViewModel untuk memanipulasi data kunjungan.
+    - Menyembunyikan detail implementasi Room DB dan penyimpanan berkas struk.
+- **Room Database**:
+    - Penyimpanan terstruktur untuk data kunjungan kuliner dan item menu.
+    - Mengembalikan data dalam bentuk aliran asinkron (`Flow<T>`) agar UI dapat otomatis terbarui ketika ada perubahan data.
+- **Storage Manager**:
+    - Mengelola penyimpanan fisik gambar struk di dalam direktori penyimpanan internal aplikasi (`Context.filesDir`).
+- **Image Compressor**:
+    - Melakukan kompresi gambar struk menjadi format JPEG sebelum disimpan ke disk untuk memastikan ukuran file **maksimal 500 KB** (persyaratan PRD).
+- **Receipt OCR Engine**:
+    - Wrapper untuk ML Kit Text Recognition Latin (on-device).
+    - Mengenali teks dari URI gambar, menghasilkan `OcrResult` (daftar `OcrLine`).
+    - Berjalan di `Dispatchers.Default` (background thread).
 
 ---
 
 ## 3. Skema Data (Database Schema)
 
-Database lokal diimplementasikan menggunakan Room dengan tiga tabel utama: `visits`, `menu_items` (relasi One-to-Many), dan `receipt_patterns` (tabel independent untuk fitur Scan Struk Tahap 4).
+Database lokal diimplementasikan menggunakan Room dengan dua tabel: `visits` dan `menu_items` (relasi One-to-Many).
 
 ```mermaid
 erDiagram
     VISIT ||--o{ MENU_ITEM : contains
-    RECEIPT_PATTERN {
-        long id PK
-        string restaurant_name UK "unique, exact match (lowercase compare)"
-        string display_name
-        string menu_line_template
-        string total_line_strategy
-        string total_line_regex "nullable"
-        string tax_line_regex "nullable"
-        string service_line_regex "nullable"
-        string discount_line_regex "nullable"
-        string date_regex "nullable"
-        string restaurant_name_strategy
-        int header_line_count
-        string skip_keywords "CSV"
-        string parser_type "GENERAL|RESTAURANT|RETAIL_THERMAL"
-        long created_at
-        long last_used_at
-        int usage_count
-    }
     VISIT {
         long id PK "Auto Increment"
         string restaurant_name "NOT NULL"
         string restaurant_address "Nullable"
         float restaurant_rating "NOT NULL (1.0 - 5.0)"
         string restaurant_review "Nullable"
-        long visit_date "NOT NULL (Timestamp)"
+        long visit_date "NOT NULL (Epoch Millis)"
         string receipt_photo_path "Nullable (Local path)"
         double grand_total "NOT NULL (Overrideable)"
     }
@@ -138,126 +124,89 @@ Merepresentasikan item hidangan yang dipesan pada kunjungan tertentu.
 | `rating` | `Float` | Rating rasa menu (Desimal 1.0 - 5.0) |
 | `notes` | `String?` | Catatan/ulasan spesifik mengenai menu (Optional) |
 
-### 3.3. Entity: `ReceiptPatternEntity` (Tabel `receipt_patterns`) — Scan Struk Tahap 4
-Menyimpan "pattern" parsing struk per restoran. Dipakai otomatis saat scan dari tempat yang sama.
+### 3.3. Relasi: `VisitWithMenus`
+POJO relasi Room menggunakan anotasi `@Embedded` + `@Relation` untuk menggabungkan `VisitEntity` dengan `List<MenuItemEntity>`.
 
-| Nama Kolom | Tipe Data Kotlin | Keterangan |
-| :--- | :--- | :--- |
-| `id` | `Long` | Primary Key, Auto-generate |
-| `restaurantName` | `String` | Key lookup (unique, case-insensitive) |
-| `displayName` | `String` | Nama tampilan pattern |
-| `menuLineTemplate` | `String` | Template regex via `TemplateToRegex.convert()` (mis: `{qty}x {name} {price}`) |
-| `totalLineStrategy` | `String` | Enum: `BIGGEST_TOTAL_KEYWORD` / `LAST_LINE` / `CUSTOM_REGEX` |
-| `totalLineRegex` | `String?` | Custom regex (jika strategy = `CUSTOM_REGEX`) |
-| `taxLineRegex` | `String?` | Regex untuk baris pajak/PPN (nullable) |
-| `serviceLineRegex` | `String?` | Regex untuk baris service charge (nullable) |
-| `discountLineRegex` | `String?` | Regex untuk baris diskon (nullable) |
-| `dateRegex` | `String?` | Regex untuk tanggal (nullable) |
-| `restaurantNameStrategy` | `String` | Enum: `FIRST_LINE` / `FIRST_TWO_LINES` / `AUTO_TOP` |
-| `headerLineCount` | `Int` | Jumlah baris header (default 2) |
-| `skipKeywords` | `String` | CSV kata kunci baris yang di-skip |
-| `parserType` | `String` | Enum: `GENERAL` / `RESTAURANT` / `RETAIL_THERMAL` (default `GENERAL`) |
-| `createdAt` | `Long` | Timestamp dibuat |
-| `lastUsedAt` | `Long` | Timestamp terakhir dipakai |
-| `usageCount` | `Int` | Berapa kali dipakai (default 0) |
+### 3.4. Database Version
 
-### 3.4. Database Migration v1 → v2
-Schema dimigrasi dengan proper migration (bukan destructive) untuk preserve data existing. Tabel `receipt_patterns` ditambah dengan `CREATE TABLE IF NOT EXISTS` + `CREATE UNIQUE INDEX IF NOT EXISTS`.
+Schema saat ini berada di **version 1**. Menggunakan `fallbackToDestructiveMigrationOnDowngrade()` tanpa migration kustom. Fitur mendatang (Parsing Struk Tahap 3-4) akan menambah migration.
 
 ---
 
 ## 4. Struktur Paket Proyek (Package Structure)
 
-Proyek Android akan diorganisasikan menggunakan struktur **Package by Feature** untuk mempermudah skalabilitas dan pemeliharaan kode:
+Proyek Android diorganisasikan menggunakan struktur **Package by Feature**:
 
 ```text
 com.pndnwngi.billumaba/
 │
+├── BillUmabaApplication.kt         # @HiltAndroidApp
+├── MainActivity.kt                 # Entry point, setContent + AppNavigation
+│
+├── util/
+│   └── GooglePlayServicesUtil.kt   # GMS availability check
+│
+├── di/
+│   ├── DatabaseModule.kt           # Provides AppDatabase, VisitDao, MenuDao
+│   ├── RepositoryModule.kt         # Binds CulinaryRepositoryImpl → CulinaryRepository
+│   └── OcrModule.kt                # Placeholder (empty, prepared for parser/providers)
+│
 ├── data/
 │   ├── database/
-│   │   ├── AppDatabase.kt              # version 2 (v1→v2 migration)
-│   │   ├── Migrations.kt               # MIGRATION_1_2 (CREATE receipt_patterns)
+│   │   ├── AppDatabase.kt          # version 1, entities: VisitEntity, MenuItemEntity
 │   │   ├── dao/
 │   │   │   ├── VisitDao.kt
-│   │   │   ├── MenuDao.kt
-│   │   │   └── ReceiptPatternDao.kt    # NEW (Scan Struk - Tahap 4)
+│   │   │   └── MenuDao.kt
 │   │   └── entities/
 │   │       ├── VisitEntity.kt
 │   │       ├── MenuItemEntity.kt
-│   │       └── ReceiptPatternEntity.kt # NEW (Scan Struk - Tahap 4)
+│   │       └── VisitWithMenus.kt
 │   │
-│   ├── ocr/                            # NEW (Scan Struk - Tahap 2)
-│   │   ├── OcrModels.kt                # OcrResult, OcrLine
-│   │   └── ReceiptOcrEngine.kt         # ML Kit wrapper
-│   │
-│   ├── parser/                         # NEW (Scan Struk - Tahap 3 & 4)
-│   │   ├── ParsedReceipt.kt            # data class + ParserType enum + interface
-│   │   ├── GeneralReceiptParser.kt
-│   │   ├── RestaurantReceiptParser.kt
-│   │   ├── RetailThermalParser.kt
-│   │   ├── ReceiptParserFactory.kt     # auto-detect + pattern lookup
-│   │   ├── PatternReceiptParser.kt     # parse dari ReceiptPatternEntity
-│   │   └── TemplateToRegex.kt          # visual template → regex converter
+│   ├── ocr/
+│   │   ├── OcrModels.kt            # OcrResult, OcrLine (Parcelable)
+│   │   └── ReceiptOcrEngine.kt     # ML Kit Text Recognition Latin wrapper
 │   │
 │   ├── repository/
-│   │   ├── CulinaryRepository.kt
-│   │   └── CulinaryRepositoryImpl.kt
+│   │   ├── CulinaryRepository.kt       # Interface
+│   │   └── CulinaryRepositoryImpl.kt   # Implementation
 │   │
 │   └── storage/
-│       ├── StorageManager.kt
-│       └── ImageCompressor.kt
-│
-├── di/
-│   ├── DatabaseModule.kt               # MODIFIED: addMigrations(MIGRATION_1_2)
-│   └── RepositoryModule.kt
+│       ├── StorageManager.kt       # File I/O (save/delete receipt images)
+│       └── ImageCompressor.kt      # Compress to max 500KB
 │
 ├── ui/
 │   ├── navigation/
-│   │   ├── Screen.kt                   # MODIFIED: +ocr_review, +patterns, +patterns/edit
-│   │   └── AppNavigation.kt            # MODIFIED: +3 composable destinations
+│   │   ├── Screen.kt               # 3 routes: Dashboard, AddEdit, Detail
+│   │   └── AppNavigation.kt        # NavHost with 3 composable destinations
 │   │
 │   ├── theme/
 │   │   ├── Color.kt
 │   │   ├── Theme.kt
 │   │   └── Type.kt
 │   │
-│   ├── components/                     # Komponen UI global
-│   │   ├── StarRating.kt
-│   │   ├── PhotoPicker.kt              # MODIFIED: bottom sheet 3 opsi (Scan default)
-│   │   └── ReceiptScanner.kt           # NEW (Scan Struk - Tahap 1)
+│   ├── components/
+│   │   ├── StarRating.kt           # StarRatingInput, StarRatingDisplay
+│   │   ├── PhotoPicker.kt          # Bottom sheet (Scan/Kamera/Galeri) + PhotoPickerWithPhoto
+│   │   └── ReceiptScanner.kt       # rememberReceiptScanner (ML Kit Doc Scanner wrapper)
 │   │
-│   ├── dashboard/                      # Fitur 2.1: Dashboard & Riwayat
-│   │   ├── DashboardScreen.kt          # MODIFIED: +ikon ⚙ → Pattern Management
+│   ├── dashboard/
+│   │   ├── DashboardScreen.kt      # Visit list, metrics, search, sort, FAB
 │   │   ├── DashboardViewModel.kt
-│   │   └── DashboardUiState.kt
+│   │   └── DashboardUiState.kt     # monthlyExpense, totalVisits, searchQuery, sortType, visits
 │   │
-│   ├── addedit/                        # Fitur 2.2: Tambah & Edit (Scan Struk integrated)
-│   │   ├── AddEditScreen.kt            # MODIFIED: tombol Ekstrak Teks, Scan Ulang
-│   │   ├── AddEditViewModel.kt         # MODIFIED: OCR + parse + save pattern handlers
-│   │   └── AddEditUiState.kt           # MODIFIED: scan/OCR/pattern fields
+│   ├── addedit/
+│   │   ├── AddEditScreen.kt        # Form + inline OCR autocomplete (AutoCompleteTextField)
+│   │   ├── AddEditViewModel.kt     # OCR engine, compress, save, autocomplete suggestions
+│   │   ├── AddEditUiState.kt       # Form fields + ocrLines + scan/processing state
+│   │   └── TokenMatcher.kt         # Token-based prefix matching for OCR suggestions
 │   │
-│   ├── ocr/                            # NEW (Scan Struk - Tahap 2 & 3)
-│   │   ├── OcrReviewScreen.kt          # Editable OCR lines + parser type UI
-│   │   ├── OcrReviewViewModel.kt       # Parser integration (Tahap 3)
-│   │   └── OcrReviewUiState.kt
-│   │
-│   ├── patterns/                       # NEW (Scan Struk - Tahap 4)
-│   │   ├── PatternListScreen.kt
-│   │   ├── PatternListViewModel.kt
-│   │   ├── PatternListUiState.kt
-│   │   ├── PatternEditScreen.kt        # Visual builder
-│   │   ├── PatternEditViewModel.kt
-│   │   └── PatternEditUiState.kt
-│   │
-│   ├── detail/                         # Fitur 2.3: Tampilan Detail
-│   │   ├── DetailScreen.kt
-│   │   ├── DetailViewModel.kt
-│   │   └── DetailUiState.kt
-│   │
-│   └── util/
-│       └── GooglePlayServicesUtil.kt   # NEW (Scan Struk - Tahap 1)
+│   └── detail/
+│       ├── DetailScreen.kt         # Visit detail + zoomable photo dialog
+│       ├── DetailViewModel.kt
+│       └── DetailUiState.kt
 │
-└── MainActivity.kt
+└── data/parser/                    # PLANNED (Tahap 3-4), not yet in main source
+    └── (test stubs only in src/test/)
 ```
 
 ---
@@ -266,63 +215,99 @@ com.pndnwngi.billumaba/
 
 Setiap layar mengadopsi pola penyediaan state sebagai berikut:
 
-### 5.1. Contoh UI State untuk Dashboard (`DashboardUiState`)
+### 5.1. Contoh UI State
+
+**Dashboard** (`DashboardUiState`):
 ```kotlin
 data class DashboardUiState(
-    val isLoading: Boolean = false,
-    val visits: List<VisitWithMenus> = emptyList(),
-    val totalExpenseThisMonth: Double = 0.0,
-    val totalVisitsCount: Int = 0,
+    val monthlyExpense: Double = 0.0,
+    val totalVisits: Int = 0,
     val searchQuery: String = "",
-    val sortOrder: SortOrder = SortOrder.DATE_DESC,
-    val errorMessage: String? = null
+    val sortType: SortType = SortType.DATE_NEWEST,
+    val visits: List<VisitWithMenus> = emptyList(),
+    val isLoading: Boolean = true
 )
 
-enum class SortOrder {
-    DATE_DESC, DATE_ASC,
-    PRICE_DESC, PRICE_ASC,
-    RATING_DESC, RATING_ASC
+enum class SortType {
+    DATE_NEWEST, DATE_OLDEST,
+    TOTAL_HIGHEST, TOTAL_LOWEST,
+    RATING_HIGHEST, RATING_LOWEST
 }
 ```
 
-### 5.2. Alur Simpan Kunjungan (Add/Edit Flow)
-1.  Pengguna mengisi data di `AddEditScreen`.
-2.  Setiap perubahan (misal: mengetik nama restoran) memicu *intent* ke `AddEditViewModel` untuk memperbarui `AddEditUiState`.
-3.  Ketika memilih foto struk:
-    *   ViewModel memanggil `StorageManager` untuk menyalin berkas.
-    *   `ImageCompressor` dijalankan secara *asynchronous* menggunakan `Dispatchers.Default` untuk mengubah ukuran dan memangkas ukuran berkas hingga `< 500 KB`.
-    *   Path lokal dari berkas yang disimpan berhasil dicatat ke dalam UI State.
-4.  Pengguna menekan "Simpan".
-5.  ViewModel melakukan validasi. Jika valid, memanggil `CulinaryRepository.saveVisit(visit, menus)` melalui `viewModelScope`.
-6.  Repository melakukan *database write* di dalam blok transaksi (`RoomDB.withTransaction`).
-7.  Setelah sukses, ViewModel memicu navigasi kembali ke Dashboard, dan aliran data Room secara otomatis memperbarui Dashboard.
+**AddEdit** (`AddEditUiState`):
+```kotlin
+data class AddEditUiState(
+    val visitId: Long = -1L,
+    val isEditMode: Boolean = false,
+    val receiptPhotoUri: String? = null,
+    val existingPhotoPath: String? = null,
+    val restaurantName: String = "",
+    val restaurantAddress: String = "",
+    val restaurantRating: Float = 5.0f,
+    val restaurantReview: String = "",
+    val visitDate: Long = System.currentTimeMillis(),
+    val menuItems: List<MenuItemInput> = listOf(MenuItemInput()),
+    val grandTotalOverride: String = "",
+    val isGrandTotalOverridden: Boolean = false,
+    val isSaving: Boolean = false,
+    val isSaved: Boolean = false,
+    val restaurantNameError: Boolean = false,
+    val menuItemsError: Boolean = false,
+    // Scan/OCR state
+    val isProcessingScan: Boolean = false,
+    val pendingGalleryUri: String? = null,
+    val showRapikanDialog: Boolean = false,
+    val showGmsFallbackDialog: Boolean = false,
+    val isRunningOcr: Boolean = false,
+    val ocrLines: List<String> = emptyList()
+)
+```
 
-### 5.3. Alur Scan Struk (Pipeline 4 Tahap)
-Scan Struk menambahkan 4 subsistem ke arsitektur MVVM yang sudah ada. Pipeline: `Scan → OCR → Mapping → Pattern Lookup`.
+**Detail** (`DetailUiState`):
+```kotlin
+data class DetailUiState(
+    val visitWithMenus: VisitWithMenus? = null,
+    val isLoading: Boolean = true,
+    val showDeleteConfirmation: Boolean = false
+)
+```
+
+### 5.2. Alur Simpan Kunjungan (Add/Edit Flow)
+1. Pengguna mengisi data di `AddEditScreen`.
+2. Setiap perubahan (misal: mengetik nama restoran) memicu *intent* ke `AddEditViewModel` untuk memperbarui `AddEditUiState`.
+3. Ketika memilih foto struk (scan/camera/gallery):
+    - ViewModel memanggil `ImageCompressor` untuk kompresi.
+    - `StorageManager` menyalin berkas hasil kompresi ke `Context.filesDir/receipts/`.
+    - Path lokal dari berkas yang berhasil disimpan dicatat ke dalam UI State.
+    - OCR otomatis berjalan: `ReceiptOcrEngine.recognize()` → hasil disimpan di `ocrLines`.
+4. Saat user mengetik di field, `TokenMatcher.filter()` menyaring `ocrLines` berdasarkan query — hasilnya muncul sebagai autocomplete popup di `AutoCompleteTextField`.
+5. Pengguna menekan "Simpan".
+6. ViewModel melakukan validasi. Jika valid, memanggil `CulinaryRepository.saveVisit(visit, menus)` melalui `viewModelScope`.
+7. Repository melakukan *database write* di dalam blok transaksi (Room `withTransaction`) — insert Visit + MenuItems, handle file kompresi.
+8. Setelah sukses, ViewModel memicu navigasi kembali ke Dashboard, dan aliran data Room secara otomatis memperbarui tampilan.
+
+### 5.3. Alur Scan Struk (Current — 2 Tahap)
+
+Scan Struk diimplementasikan dalam 2 tahap yang terintegrasi langsung di `AddEditScreen`:
 
 ```mermaid
 graph TD
-    subgraph Presentation_Layer [Presentation Layer - Scan Struk]
-        AddEditScreen -->|scan flow| ReceiptScanner[ReceiptScanner Composable]
-        AddEditScreen -->|OCR| OcrReviewScreen
-        OcrReviewScreen -->|mapping| AddEditViewModel
-        AddEditScreen -->|patterns| PatternListScreen
-        PatternListScreen --> PatternEditScreen
+    subgraph Presentation_Layer [Presentation Layer]
+        AddEditScreen -->|scan flow| ReceiptScanner[rememberReceiptScanner]
+        AddEditScreen -->|typing| AutoComplete[AutoCompleteTextField]
     end
 
-    subgraph Domain_Layer [Domain/Logic - Scan Struk]
-        AddEditViewModel --> ParserFactory[ReceiptParserFactory]
+    subgraph ViewModel_Layer [ViewModel Layer]
         AddEditViewModel --> OcrEngine[ReceiptOcrEngine]
-        ParserFactory --> PatternDao[ReceiptPatternDao]
-        ParserFactory --> GeneralParser
-        ParserFactory --> RestaurantParser
-        ParserFactory --> RetailParser
-        ParserFactory --> PatternParser[PatternReceiptParser]
+        AddEditViewModel --> TokenMatcher[TokenMatcher]
+        AddEditViewModel --> ImageCompressor
     end
 
-    subgraph Data_Layer [Data Layer - Scan Struk]
-        OcrEngine --> MLKit[ML Kit Text Recognition]
-        PatternDao --> RoomDB[(Room DB v2)]
+    subgraph Data_Layer [Data Layer]
+        OcrEngine --> MLKit[ML Kit Text Recognition Latin]
+        ImageCompressor --> StorageMgr[StorageManager]
+        StorageMgr --> Disk[(Local Disk)]
     end
 
     subgraph External
@@ -330,18 +315,17 @@ graph TD
     end
 ```
 
-**Tahap 1 — Auto-Frame**: User tap "Scan" di AddEditScreen → `ReceiptScanner` Composable wrap ML Kit Document Scanner → foto dikembalikan (sudah lurus & cropped) → `AddEditViewModel.onScannedPhoto(uri)` compress + save. GMS unavailable → fallback dialog → kamera biasa.
+**Tahap 1 — Auto-Frame**: User tap "Scan" di AddEditScreen → `rememberReceiptScanner` Composable wrap ML Kit Document Scanner → foto dikembalikan (sudah lurus & cropped) → `AddEditViewModel.onScannedPhoto(uri)` → compress + save ke disk. GMS unavailable → fallback dialog → kamera biasa.
 
-**Tahap 2 — OCR**: User tap "Ekstrak Teks" → `AddEditViewModel.runOcr()` → `ReceiptOcrEngine.recognize()` (ML Kit Text Recognition Latin, on-device) → `OcrResult` di-share ke `OcrReviewScreen` via `rememberSaveable` di NavHost. User bisa edit baris teks.
+**Tahap 2 — OCR**: Setelah foto terkompresi, OCR otomatis berjalan → `ReceiptOcrEngine.recognize()` (ML Kit Text Recognition Latin, on-device) → `OcrResult` berisi daftar `OcrLine` → `ocrLines` disimpan di state. User mengetik di field (nama tempat, alamat, menu, harga, grand total) → `TokenMatcher.filter(lines, query, numericOnly)` menyaring baris OCR yang cocok → suggestions muncul sebagai popup autocomplete di atas field.
 
-**Tahap 3 — Mapping**: `OcrReviewViewModel.runDetection()` rebuild `OcrResult` dari edited lines → `ReceiptParserFactory.parse(ocr, overrideType)`:
-1. Pattern lookup by `restaurantName` → `PatternReceiptParser` (Tahap 4)
-2. Auto-detect by keyword (cash markers → RETAIL, subtotal+pajak → RESTAURANT, else → GENERAL)
-3. Override manual oleh user
+### 5.4. Alur Scan Struk Mendatang (Planned — Tahap 3-4)
 
-User tap "Pakai Hasil Scan" → parsed receipt di-share ke AddEditScreen → `AddEditViewModel.applyParsedReceipt()` populates form.
+Pipeline lengkap yang direncanakan: `Scan → OCR → Mapping → Pattern Lookup`.
 
-**Tahap 4 — Dynamic Pattern**: User buka Dashboard → ikon ⚙ → `PatternListScreen`. Tap `+` → `PatternEditScreen` (visual builder: token QTY/NAMA/HARGA/SUBTOTAL, dropdown strategi, skip keywords, switch regex opsional). "Test dengan foto" → run OCR + parse → preview. Save → `ReceiptPatternDao.upsert()`. Next scan dari tempat yang sama → pattern dipakai otomatis (override auto-detect).
+**Tahap 3 — Text Mapping**: `OcrReviewScreen` → user edit baris OCR → pilih tipe parser → `ReceiptParserFactory.parse()` → `ParsedReceipt` → form terisi otomatis.
+
+**Tahap 4 — Dynamic Pattern**: `PatternListScreen` → `PatternEditScreen` (visual builder) → `ReceiptPatternDao.upsert()` → auto-apply di scan selanjutnya.
 
 ---
 
@@ -349,73 +333,53 @@ User tap "Pakai Hasil Scan" → parsed receipt di-share ke AddEditScreen → `Ad
 
 ### 6.1. Optimasi & Kompresi Struk (`ImageCompressor`)
 Untuk memenuhi batas penyimpanan **500 KB** per foto:
-*   Resolusi gambar diturunkan secara proporsional jika terlalu besar (maksimal lebar/tinggi 1920px).
-*   Format kompresi menggunakan `Bitmap.CompressFormat.JPEG` atau `WEBP_JPEG_COMPATIBLE` dengan kualitas *quality factor* awal 80%.
-*   Jika ukuran masih melebihi 500 KB, rasio kualitas diturunkan bertahap (70%, 60%) melalui fungsi iteratif hingga mendapatkan file di bawah limit.
+- Resolusi gambar diturunkan secara proporsional jika terlalu besar (maksimal lebar/tinggi 1920px).
+- Kompresi menggunakan `Bitmap.CompressFormat.JPEG` dengan kualitas awal 80%.
+- Jika ukuran masih melebihi 500 KB, rasio kualitas diturunkan bertahap (70%, 60%, ... 10%) melalui fungsi iteratif hingga mendapatkan file di bawah limit.
 
 ### 6.2. Tema Dinamis (Material Design 3)
-*   **Dynamic Theme**: Menggunakan API `dynamicLightColorScheme` dan `dynamicDarkColorScheme` untuk Android 12+ (API 31+).
-*   **Warm Fallback**: Jika dinamis tidak aktif, skema warna diinisialisasi menggunakan palet kuliner hangat (Primary: Amber/Orange, Secondary: Terracotta/Warm Brown).
+- **Dynamic Theme**: Menggunakan API `dynamicLightColorScheme` dan `dynamicDarkColorScheme` untuk Android 12+ (API 31+).
+- **Warm Fallback**: Jika dinamis tidak aktif, skema warna diinisialisasi menggunakan palet kuliner hangat (Primary: Amber/Orange, Secondary: Terracotta/Warm Brown).
+
+### 6.3. Token-Based OCR Autocomplete (`TokenMatcher`)
+- Baris OCR di-split menjadi token (dipisah spasi).
+- Query user di-split menjadi kata-kata.
+- Setiap kata query dicocokkan prefix (startsWith) terhadap token — case-insensitive.
+- Untuk field numerik, hanya baris OCR yang mengandung digit yang diikutsertakan.
 
 ---
 
 ## 7. Kebutuhan Dependensi (Libraries)
 
-Berikut adalah daftar pustaka Android Jetpack yang diperlukan untuk implementasi arsitektur ini. Konfigurasi ini harus didaftarkan pada file `libs.versions.toml` dan Gradle aplikasi.
+Berikut adalah daftar pustaka yang digunakan saat ini, dikonfigurasi di `gradle/libs.versions.toml`:
 
-### 7.1. Database (Room)
-```toml
-# libs.versions.toml
-room = "2.6.1"
-androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
-androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
-androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
-```
+### 7.1. Versi Kunci
 
-### 7.2. Dependency Injection (Hilt)
-```toml
-# libs.versions.toml
-hilt = "2.51.1"
-hiltNavigationCompose = "1.2.0"
-dagger-hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
-dagger-hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
-androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
-```
+| Library | Version |
+| :--- | :--- |
+| Kotlin | 2.0.21 |
+| AGP | 8.7.3 |
+| KSP | 2.0.21-1.0.28 |
+| Compose BOM | 2024.10.01 |
+| Room | 2.6.1 |
+| Hilt | 2.52 |
+| Hilt Navigation Compose | 1.2.0 |
+| Navigation Compose | 2.8.3 |
+| Coil | 2.7.0 |
+| ML Kit Document Scanner | 16.0.0 (`com.google.android.gms:play-services-mlkit-document-scanner`) |
+| Play Services Base | 18.5.0 |
+| ML Kit Text Recognition | 16.0.1 (`com.google.mlkit:text-recognition`) |
+| Coroutines Play Services | 1.8.1 |
 
-### 7.3. Navigation
-```toml
-# libs.versions.toml
-navigationCompose = "2.8.7"
-androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
-```
-
-### 7.4. ML Kit (Scan Struk)
-```toml
-# libs.versions.toml
-mlkit-document-scanner = "16.0.0-beta1"
-mlkit-text-recognition-latin = "16.0.0.1"
-coroutines-play-services = "1.8.1"
-
-androidx-mlkit-document-scanner = { group = "com.google.mlkit", name = "document-scanner", version.ref = "mlkit-document-scanner" }
-androidx-mlkit-text-recognition-latin = { group = "com.google.mlkit", name = "text-recognition-latin", version.ref = "mlkit-text-recognition-latin" }
-kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines-play-services" }
-```
-
-```kotlin
-// app/build.gradle.kts — additions
-dependencies {
-    // ... existing ...
-    implementation(libs.androidx.mlkit.document.scanner)
-    implementation(libs.androidx.mlkit.text.recognition.latin)
-    implementation(libs.kotlinx.coroutines.play.services)
-}
-```
-
-**Constraint**: ML Kit Document Scanner butuh Google Play Services. Check via `GoogleApiAvailability` sebelum launch. Fallback ke Camera biasa jika tidak tersedia. ML Kit Text Recognition Latin sudah bundled (offline), tidak butuh GMS untuk runtime.
+### 7.2. Catatan Dependensi ML Kit
+- **Document Scanner** (`com.google.android.gms:play-services-mlkit-document-scanner`) — butuh Google Play Services. Check via `GooglePlayServicesUtil` sebelum launch. Fallback ke kamera biasa jika tidak tersedia.
+- **Text Recognition** (`com.google.mlkit:text-recognition`) — sudah bundled (offline), tidak butuh GMS untuk runtime.
 
 ---
 
 ## 8. Navigation Routes
+
+3 routes saat ini:
 
 ```kotlin
 sealed class Screen(val route: String) {
@@ -427,53 +391,57 @@ sealed class Screen(val route: String) {
     data object Detail : Screen("detail/{visitId}") {
         fun createRoute(visitId: Long): String = "detail/$visitId"
     }
-    // Scan Struk routes
-    data object OcrReview : Screen("ocr_review")
-    data object PatternList : Screen("patterns")
-    data object PatternEdit : Screen("patterns/edit?id={id}") {
-        fun createRoute(id: Long? = null): String =
-            if (id != null) "patterns/edit?id=$id" else "patterns/edit"
-    }
 }
 ```
 
-Scan Struk menambah 3 routes baru. Shared state (`pendingOcrResult`, `pendingParsedReceipt`) digunakan via `rememberSaveable` di NavHost level untuk passing data antar `AddEditScreen` dan `OcrReviewScreen`.
+Routes yang direncanakan untuk tahap 3-4:
+- `ocr_review` — OcrReviewScreen (Tahap 3)
+- `patterns` — PatternListScreen (Tahap 4)
+- `patterns/edit{?id}` — PatternEditScreen (Tahap 4)
 
 ---
 
-## 9. Pola Parser (Scan Struk)
+## 9. Catatan Rencana Pengembangan
 
-```
-ReceiptParser (interface)
-├── GeneralReceiptParser      # heuristic dasar (Umum)
-├── RestaurantReceiptParser   # handle subtotal + pajak + service (Resto)
-├── RetailThermalParser       # cash register format (Retail)
-└── PatternReceiptParser      # dari ReceiptPatternEntity (custom user)
-```
-
-`ReceiptParserFactory.parse()` priority:
-1. Pattern lookup by `restaurantName` → `PatternReceiptParser` + update `lastUsedAt`/`usageCount`
-2. Auto-detect by keyword → salah satu dari 3 preset
-3. Override manual oleh user → sesuai pilihan dropdown
-
-Template visual di-convert ke regex via `TemplateToRegex.convert()`:
-- Token: `{qty}`, `{name}`, `{price}`, `{subtotal}`
-- Proses: `Regex.escape()` seluruh template → replace escaped tokens dengan named group regex (`(?<qty>\d+)`, `(?<name>.+?)`, `(?<price>[\d.,]+)`, `(?<subtotal>[\d.,]+)`).
-- Output: `Regex(pattern, RegexOption.IGNORE_CASE)`.
-
----
-
-## 10. Catatan Perubahan terhadap Arsitektur Existing
+### 9.1. Fitur yang Sudah Diimplementasikan
 
 | Komponen | Status | Catatan |
-|---|---|---|
-| `AppDatabase` | **MODIFIED** | Version 1→2, +ReceiptPatternEntity, +receiptPatternDao() |
-| `DatabaseModule` | **MODIFIED** | +addMigrations(MIGRATION_1_2), +provideReceiptPatternDao |
-| `AddEditViewModel` | **MODIFIED** | +ReceiptOcrEngine, +ReceiptPatternDao inject; +scan/OCR/parse/pattern handlers |
-| `AddEditUiState` | **MODIFIED** | +scan/OCR/parsedReceipt fields |
-| `PhotoPicker` | **MODIFIED** | 2 tombol → bottom sheet 3 opsi (Scan default) |
-| `Screen.kt` | **MODIFIED** | +3 routes: ocr_review, patterns, patterns/edit |
-| `AppNavigation.kt` | **MODIFIED** | +3 composable destinations, +shared state (pendingOcrResult, pendingParsedReceipt) |
-| `DashboardScreen` | **MODIFIED** | +IconButton Settings di TopAppBar → PatternList |
+| :--- | :--- | :--- |
+| `AppDatabase` v1 | **DONE** | `VisitEntity`, `MenuItemEntity`, `VisitDao`, `MenuDao` |
+| `DatabaseModule` | **DONE** | Provides AppDatabase, VisitDao, MenuDao; `fallbackToDestructiveMigrationOnDowngrade` |
+| `CulinaryRepository` + Impl | **DONE** | CRUD operations, photo file handling, transactional save |
+| `ReceiptOcrEngine` | **DONE** | ML Kit Text Recognition Latin wrapper |
+| `OcrModels` | **DONE** | Parcelable `OcrResult` + `OcrLine` |
+| `StorageManager` | **DONE** | Save/delete receipt images to `filesDir/receipts/` |
+| `ImageCompressor` | **DONE** | Iterative JPEG compression to 500KB limit |
+| `ReceiptScanner` | **DONE** | ML Kit Document Scanner wrapper with GMS check |
+| `PhotoPicker` | **DONE** | Bottom sheet 3 opsi (Scan/Kamera/Galeri) + rapikan dialog |
+| `TokenMatcher` | **DONE** | Token-based prefix matching for OCR autocomplete |
+| `AutoCompleteTextField` | **DONE** | Inline composable in AddEditScreen with OCR suggestion popup |
+| `DashboardScreen` | **DONE** | Metrics, search, sort (6 types), visit cards, FAB |
+| `AddEditScreen` | **DONE** | Full form, inline OCR, date picker, validation |
+| `DetailScreen` | **DONE** | Full detail view, zoomable photo dialog, edit/delete |
+| `StarRating` | **DONE** | StarRatingInput (interactive) + StarRatingDisplay (read-only) |
+| `GooglePlayServicesUtil` | **DONE** | GMS availability check |
+| `OcrModule` | **DONE** | Empty placeholder DI module |
+| M3 Theme | **DONE** | Dynamic color + warm fallback, light/dark mode |
 
-Tidak ada perubahan pada: tema M3, schema `visits`/`menu_items`, format foto JPEG <500KB, dependencies Room/Hilt/Compose/Coil. Hanya tambah ML Kit libraries untuk fitur Scan Struk.
+### 9.2. Fitur yang Direncanakan (Tahap 3-4)
+
+| Komponen | Status | Catatan |
+| :--- | :--- | :--- |
+| `ReceiptPatternEntity` + `ReceiptPatternDao` | Planned Tahap 4 | Tabel `receipt_patterns` |
+| `AppDatabase` v2 | Planned Tahap 4 | +ReceiptPatternEntity, +receiptPatternDao() |
+| `MIGRATION_1_2` | Planned Tahap 4 | `CREATE TABLE receipt_patterns` |
+| `ParsedReceipt.kt` | Planned Tahap 3 | Data class + ParserType enum + interface |
+| `GeneralReceiptParser` | Planned Tahap 3 | Heuristic dasar |
+| `RestaurantReceiptParser` | Planned Tahap 3 | Subtotal + pajak + service |
+| `RetailThermalParser` | Planned Tahap 3 | Cash register format |
+| `ReceiptParserFactory` | Planned Tahap 3 | Auto-detect + pattern lookup |
+| `PatternReceiptParser` | Planned Tahap 4 | Parse dari ReceiptPatternEntity |
+| `TemplateToRegex` | Planned Tahap 4 | Visual template → regex converter |
+| `OcrReviewScreen` + VM + State | Planned Tahap 3 | Editable OCR lines + parser type UI |
+| `PatternListScreen` + VM + State | Planned Tahap 4 | Pattern list with usage stats |
+| `PatternEditScreen` + VM + State | Planned Tahap 4 | Visual builder (dropdown, chips, token) |
+| Routes `ocr_review`, `patterns`, `patterns/edit` | Planned Tahap 3-4 | 3 new routes in Screen + NavHost |
+| Dashboard gear icon | Planned Tahap 4 | IconButton → PatternList |
