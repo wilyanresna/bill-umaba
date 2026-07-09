@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,7 +61,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -127,11 +138,19 @@ fun AddEditScreen(
             )
         }
     ) { paddingValues ->
+        val focusManager = LocalFocusManager.current
+        val keyboardController = LocalSoftwareKeyboardController.current
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .imePadding()
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    })
+                }
         ) {
             Column(
                 modifier = Modifier
@@ -313,7 +332,11 @@ private fun AutoCompleteTextField(
     supportingText: @Composable (() -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var isFocused by remember { mutableStateOf(false) }
     var textFieldValue by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+    var fieldHeightPx by remember { mutableIntStateOf(0) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current
 
     LaunchedEffect(value) {
         if (textFieldValue.text != value) {
@@ -321,13 +344,13 @@ private fun AutoCompleteTextField(
         }
     }
 
-    Column(modifier = modifier) {
+    Box(modifier = modifier) {
         OutlinedTextField(
             value = textFieldValue,
             onValueChange = { tfv ->
                 textFieldValue = tfv
                 onValueChange(tfv.text)
-                expanded = tfv.text.isNotEmpty()
+                expanded = tfv.text.isNotEmpty() && isFocused
             },
             label = { Text(label) },
             singleLine = singleLine,
@@ -337,36 +360,57 @@ private fun AutoCompleteTextField(
                     suggestions.firstOrNull()?.let { first ->
                         onValueChange(first)
                         textFieldValue = TextFieldValue(first, TextRange(first.length))
-                        expanded = false
                     }
+                    expanded = false
+                    keyboardController?.hide()
                 }
             ),
             isError = isError,
             supportingText = supportingText,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    fieldHeightPx = coordinates.size.height
+                }
+                .onFocusChanged { focusState ->
+                    isFocused = focusState.isFocused
+                    if (!focusState.isFocused) {
+                        expanded = false
+                        keyboardController?.hide()
+                    }
+                }
         )
 
         if (expanded && suggestions.isNotEmpty()) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.extraSmall,
-                shadowElevation = 8.dp,
-                color = MaterialTheme.colorScheme.surface
+            val offsetPx = -fieldHeightPx - 8
+            val offsetDp = with(density) { offsetPx.toDp().roundToPx() }
+            Popup(
+                alignment = Alignment.BottomStart,
+                offset = IntOffset(0, offsetDp),
+                properties = PopupProperties(focusable = false),
+                onDismissRequest = { expanded = false }
             ) {
-                Column {
-                    suggestions.forEach { suggestion ->
-                        Text(
-                            text = suggestion,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onValueChange(suggestion)
-                                    textFieldValue = TextFieldValue(suggestion, TextRange(suggestion.length))
-                                    expanded = false
-                                }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraSmall,
+                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Column {
+                        suggestions.forEach { suggestion ->
+                            Text(
+                                text = suggestion,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onValueChange(suggestion)
+                                        textFieldValue = TextFieldValue(suggestion, TextRange(suggestion.length))
+                                        expanded = false
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
                     }
                 }
             }
